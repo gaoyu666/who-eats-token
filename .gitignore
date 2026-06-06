@@ -24,4 +24,7 @@ api-token.txt
 
 # Local analysis artifacts (not product code)
 .understand-anything/
+.omx/
 agent_memory/
+/outputs/
+docs/pr*-body.md

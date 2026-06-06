@@ -82,11 +82,6 @@ const {
   getDisplayForActiveWindow
 } = createDisplayAdapter({ screen });
 
-// ── Hot-plug: reposition overlay/HUD immediately on display change ──
-screen.on('display-added', () => refreshOverlayCoordinator());
-screen.on('display-removed', () => refreshOverlayCoordinator());
-screen.on('display-metrics-changed', () => refreshOverlayCoordinator());
-
 const {
   addWindowCandidate,
   doesWindowOverlapDesktopBar,
@@ -116,6 +111,12 @@ const {
   getDesktopBarVisualBounds: () => getDesktopBarVisualBounds(settings, getPrimaryDisplay()),
   isOwnDesktopBar
 });
+
+function registerDisplayChangeListeners() {
+  screen.on('display-added', () => refreshOverlayCoordinator());
+  screen.on('display-removed', () => refreshOverlayCoordinator());
+  screen.on('display-metrics-changed', () => refreshOverlayCoordinator());
+}
 
 if (process.env.WHO_EATS_TOKEN_DISABLE_GPU === "1") {
   app.disableHardwareAcceleration();
@@ -2589,6 +2590,7 @@ ipcMain.handle("window:close", () => {
 app.whenReady().then(() => {
   if (!gotSingleInstanceLock) return;
   const headless = isHeadlessRuntime();
+  registerDisplayChangeListeners();
   settings = loadSettings(app.getPath("userData"));
   localApiAccess = getLocalApiAccess(app.getPath("userData"));
   cleanupHudDebugLog();
