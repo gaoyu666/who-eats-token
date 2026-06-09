@@ -8,6 +8,7 @@ const { collectHermesUsage } = require("./collectors/hermes-local.cjs");
 const { getProviderRegistry } = require("./config/providers.cjs");
 const { loadSettings, saveSettings, sanitizeSettings } = require("./config/settings.cjs");
 const { scanAvailableTools } = require("./system/tool-scanner.cjs");
+const { createToolRegistryStateMachine } = require("./system/tool-registry.cjs");
 const { ensureHermesOverlayInstalled } = require("./integrations/hermes-overlay-installer.cjs");
 const {
   boundsOverlap,
@@ -137,15 +138,10 @@ const TOOL_DESKTOP_WAKE_MS = 75;
 const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 120;
 const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;
 const TOOL_TRANSITION_SNAPSHOT_DELAY_MS = OVERLAY_COORDINATOR_REFRESH_MS;
-const TOOL_HUD_STEADY_REFRESH_MS = 5 * 60 * 1000;
 const HIDDEN_SNAPSHOT_REFRESH_MS = 5 * 60 * 1000;
 const ACTIVE_TOOL_TTL_MS = 10 * 60 * 1000;
 const HUD_DEBUG_LOG_MAX_BYTES = 1 * 1024 * 1024;
 const CODEX_SESSION_WATCH_DEBOUNCE_MS = 750;
-const TOOL_REGISTRY_IDLE_THRESHOLD_MS = 10 * 60 * 1000;
-const TOOL_REGISTRY_OFFLINE_THRESHOLD_MS = 60 * 60 * 1000;
-const TOOL_REGISTRY_DELETE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
-const TOOL_PROCESS_SCAN_MS = 30_000;
 const SETTINGS_WIDTH = 420;
 const SETTINGS_HEIGHT = 560;
 const TREND_WINDOW_MS = 15 * 60 * 1000;
@@ -217,12 +213,23 @@ let toolDesktopWakeProbeBuffer = "";
 let systemTimer = null;
 let codexSessionWatcher = null;
 let codexSessionWatchTimer = null;
-let toolRegistry = new Map();
-let lastBroadcastRegistry = null;
-let toolProcessScanTimer = null;
 let isQuitting = false;
 let desktopBarMouseInteractive = null;
 let toolHudHitboxMouseInteractive = null;
+
+function isWorkBuddyToolHudVisible() {
+  return latestHudPayload?.visible && latestHudPayload.tool?.id === "workbuddy";
+}
+
+const toolSM = createToolRegistryStateMachine({
+  clock: () => Date.now(),
+  getTrackedIds: () => settings.tools.tracked,
+  getOverlayMode: () => latestOverlayDecision?.mode,
+  getRefreshMs: () => settings.behavior.refreshMs,
+  isWorkBuddyVisible: isWorkBuddyToolHudVisible,
+  broadcast: (data) => safeSend(desktopBarWindow, "tool-registry:update", data)
+});
+const toolRegistry = toolSM.registry;
 
 const snapshotService = createSnapshotService({
   collectCodexUsage,
@@ -1941,14 +1948,7 @@ function scheduleNextSnapshotRefresh(delayMs = getSnapshotRefreshDelayMs()) {
 }
 
 function getSnapshotRefreshDelayMs() {
-  if (latestOverlayDecision?.mode === "desktop-topbar") {
-    return settings.behavior.refreshMs;
-  }
-  if (latestOverlayDecision?.mode === "tool-hud") {
-    if (isWorkBuddyToolHudVisible()) return WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS;
-    return TOOL_HUD_STEADY_REFRESH_MS;
-  }
-  return -1;
+  return toolSM.getSnapshotRefreshDelayMs();
 }
 
 function isToolTracked(toolId) {
@@ -1956,106 +1956,32 @@ function isToolTracked(toolId) {
 }
 
 function updateToolRegistry(decision) {
-  const tool = decision.toolContext?.tool;
-  if (!tool || !isToolTracked(tool.id)) return;
-  const now = Date.now();
-  toolRegistry.set(tool.id, {
-    id: tool.id,
-    name: tool.name,
-    providerIds: tool.providerIds,
-    status: "online-foreground",
-    lastSeenAt: now
-  });
-  for (const [id, entry] of toolRegistry) {
-    if (id !== tool.id && entry.status === "online-foreground") {
-      entry.status = "online-background";
-    }
-  }
-  broadcastToolRegistry();
+  toolSM.updateToolRegistry(decision);
 }
 
 function broadcastToolRegistry() {
-  const data = Array.from(toolRegistry.values());
-  const json = JSON.stringify(data);
-  if (json === lastBroadcastRegistry) return;
-  lastBroadcastRegistry = json;
-  safeSend(desktopBarWindow, "tool-registry:update", data);
+  toolSM.broadcastState();
 }
 
 function seedTrackedTools() {
   const available = scanAvailableTools();
-  const now = Date.now();
-  for (const tool of available) {
-    if (!isToolTracked(tool.id)) continue;
-    if (toolRegistry.has(tool.id)) continue;
-    if (tool.available) {
-      toolRegistry.set(tool.id, {
-        id: tool.id,
-        name: tool.name,
-        providerIds: tool.providerIds,
-        status: "online-background",
-        lastSeenAt: now
-      });
-    }
-  }
-  broadcastToolRegistry();
+  toolSM.seedTrackedTools(available);
 }
 
 function scheduleToolProcessScan() {
-  if (toolProcessScanTimer) return;
-  if (toolRegistry.size === 0) return;
-  toolProcessScanTimer = setTimeout(() => {
-    toolProcessScanTimer = null;
-    scanTrackedToolProcesses();
-    scheduleToolProcessScan();
-  }, TOOL_PROCESS_SCAN_MS);
-  toolProcessScanTimer.unref?.();
+  toolSM.scheduleScan();
 }
 
 function stopToolProcessScan() {
-  if (!toolProcessScanTimer) return;
-  clearTimeout(toolProcessScanTimer);
-  toolProcessScanTimer = null;
+  toolSM.stopScan();
 }
 
 function scanTrackedToolProcesses() {
-  const now = Date.now();
-  let changed = false;
-  for (const [id, entry] of toolRegistry) {
-    if (entry.status === "online-foreground") continue;
-    const elapsed = now - entry.lastSeenAt;
-    if (entry.status === "online-background") {
-      if (elapsed > TOOL_REGISTRY_IDLE_THRESHOLD_MS) {
-        entry.status = "idle";
-        changed = true;
-      }
-    } else if (entry.status === "idle") {
-      if (elapsed > TOOL_REGISTRY_OFFLINE_THRESHOLD_MS) {
-        entry.status = "offline";
-        changed = true;
-      }
-    } else if (entry.status === "offline") {
-      if (elapsed > TOOL_REGISTRY_DELETE_THRESHOLD_MS) {
-        toolRegistry.delete(id);
-        changed = true;
-      }
-    }
-  }
-  if (changed) broadcastToolRegistry();
+  toolSM.scanTrackedToolProcesses();
 }
 
 function cleanupUntrackedTools() {
-  let changed = false;
-  for (const [id] of toolRegistry) {
-    if (!isToolTracked(id)) {
-      toolRegistry.delete(id);
-      changed = true;
-    }
-  }
-  if (changed) {
-    broadcastToolRegistry();
-    if (toolRegistry.size === 0) stopToolProcessScan();
-  }
+  toolSM.cleanupUntrackedTools();
 }
 
 function refreshVisibleHudPayloadFromSnapshot(snapshot) {

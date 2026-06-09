@@ -1,388 +1,335 @@
 /**
- * Tool registry state machine unit tests with mock clocks.
+ * Tool registry state machine tests — requires the REAL production module.
  *
- * Covers the 8 mandatory acceptance scenarios:
- *  1. Checkbox tracking → tool appears in registry
- *  2. Foreground switch → old tool demoted to background
- *  3. 10min idle threshold → online-background → idle
- *  4. 1h offline threshold → idle → offline
- *  5. Desktop mode → refreshMs used for snapshot delay
- *  6. Tool HUD mode → TOOL_HUD_STEADY_REFRESH_MS (5min)
- *  7. WorkBuddy HUD → WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS (2s)
- *  8. Hidden mode → -1 (no refresh)
+ * All 8 acceptance scenarios verified against src/system/tool-registry.cjs
+ * with mock clock and mock dependencies. No hand-rewritten copies.
  *
  * Run: node scripts/test-tool-state-machine.mjs
  */
 
 import assert from "node:assert/strict";
+import { createRequire } from "node:module";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-// ── Constants (mirrored from main.cjs) ─────────────────────────────
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const require = createRequire(path.join(__dirname, "..", "src", "system", "tool-registry.cjs"));
 
-const TOOL_REGISTRY_IDLE_THRESHOLD_MS = 10 * 60 * 1000;      // 10min
-const TOOL_REGISTRY_OFFLINE_THRESHOLD_MS = 60 * 60 * 1000;   // 1h
-const TOOL_REGISTRY_DELETE_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24h
-const TOOL_HUD_STEADY_REFRESH_MS = 5 * 60 * 1000;            // 5min
-const WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS = 2000;               // 2s
+// Require the REAL production module
+const { createToolRegistryStateMachine } = require("./tool-registry.cjs");
 
 // ── Mock clock ─────────────────────────────────────────────────────
 
-let mockNow = Date.now();
+let mockNow = 1000000;
 
 function advanceClock(ms) {
   mockNow += ms;
 }
 
-// ── State machine (extracted from main.cjs) ────────────────────────
+function resetClock() {
+  mockNow = 1000000;
+}
 
-function createToolRegistryState(tracked = []) {
-  const registry = new Map();
-  let lastBroadcast = null;
+// ── Test helpers ───────────────────────────────────────────────────
 
-  function isToolTracked(id) {
-    return tracked.includes(id);
-  }
+function createTestSM(opts = {}) {
+  const tracked = opts.tracked || ["vscode", "cursor"];
+  let overlayMode = opts.overlayMode || null;
+  let refreshMs = opts.refreshMs || 15000;
+  let workBuddyVisible = opts.workBuddyVisible || false;
+  const broadcasts = [];
 
-  function updateToolRegistry(tool) {
-    if (!tool || !isToolTracked(tool.id)) return;
-    registry.set(tool.id, {
-      id: tool.id,
-      name: tool.name,
-      status: "online-foreground",
-      lastSeenAt: mockNow
-    });
-    for (const [id, entry] of registry) {
-      if (id !== tool.id && entry.status === "online-foreground") {
-        entry.status = "online-background";
-      }
-    }
-  }
-
-  function scanTrackedToolProcesses() {
-    let changed = false;
-    for (const [id, entry] of registry) {
-      if (entry.status === "online-foreground") continue;
-      const elapsed = mockNow - entry.lastSeenAt;
-      if (entry.status === "online-background") {
-        if (elapsed > TOOL_REGISTRY_IDLE_THRESHOLD_MS) {
-          entry.status = "idle";
-          changed = true;
-        }
-      } else if (entry.status === "idle") {
-        if (elapsed > TOOL_REGISTRY_OFFLINE_THRESHOLD_MS) {
-          entry.status = "offline";
-          changed = true;
-        }
-      } else if (entry.status === "offline") {
-        if (elapsed > TOOL_REGISTRY_DELETE_THRESHOLD_MS) {
-          registry.delete(id);
-          changed = true;
-        }
-      }
-    }
-    return changed;
-  }
-
-  function cleanupUntrackedTools() {
-    let changed = false;
-    for (const [id] of registry) {
-      if (!isToolTracked(id)) {
-        registry.delete(id);
-        changed = true;
-      }
-    }
-    return changed;
-  }
-
-  function seedTrackedTools(available) {
-    for (const tool of available) {
-      if (!isToolTracked(tool.id)) continue;
-      if (registry.has(tool.id)) continue;
-      if (tool.available) {
-        registry.set(tool.id, {
-          id: tool.id,
-          name: tool.name,
-          status: "online-background",
-          lastSeenAt: mockNow
-        });
-      }
-    }
-  }
-
-  function getSnapshotRefreshDelayMs(mode) {
-    if (mode === "desktop-topbar") return 15_000;
-    if (mode === "tool-hud") return TOOL_HUD_STEADY_REFRESH_MS;
-    if (mode === "workbuddy-hud") return WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS;
-    return -1;
-  }
+  const sm = createToolRegistryStateMachine({
+    clock: () => mockNow,
+    getTrackedIds: () => tracked,
+    getOverlayMode: () => overlayMode,
+    getRefreshMs: () => refreshMs,
+    isWorkBuddyVisible: () => workBuddyVisible,
+    broadcast: (data) => broadcasts.push(data)
+  });
 
   return {
-    get registry() { return registry; },
-    updateToolRegistry,
-    scanTrackedToolProcesses,
-    cleanupUntrackedTools,
-    seedTrackedTools,
-    getSnapshotRefreshDelayMs
+    sm,
+    tracked,
+    broadcasts,
+    setOverlayMode: (m) => { overlayMode = m; },
+    setRefreshMs: (ms) => { refreshMs = ms; },
+    setWorkBuddyVisible: (v) => { workBuddyVisible = v; }
   };
 }
 
-// ── Tests ──────────────────────────────────────────────────────────
-
-let passed = 0;
-let failed = 0;
+let passCount = 0;
+let failCount = 0;
 
 function test(name, fn) {
-  mockNow = Date.now();
   try {
+    resetClock();
     fn();
     console.log(`  ✅ ${name}`);
-    passed++;
+    passCount++;
   } catch (e) {
-    console.error(`  ❌ ${name}`);
-    console.error(`     ${e.message}`);
-    failed++;
+    console.log(`  ❌ ${name}`);
+    console.log(`     ${e.message}`);
+    failCount++;
   }
 }
 
-// ── Scenario 1: Checkbox tracking ──────────────────────────────────
+// ── S1: Checkbox tracking (seed + cleanup) ─────────────────────────
 
-test("S1: seedTrackedTools adds tracked available tools to registry", () => {
-  const state = createToolRegistryState(["vscode", "cursor"]);
-  state.seedTrackedTools([
-    { id: "vscode", name: "VS Code", available: true },
-    { id: "cursor", name: "Cursor", available: true },
-    { id: "notepad", name: "Notepad", available: true }
-  ]);
-  assert.equal(state.registry.size, 2);
-  assert.equal(state.registry.get("vscode").status, "online-background");
-  assert.equal(state.registry.get("cursor").status, "online-background");
-  assert.equal(state.registry.has("notepad"), false);
-});
+console.log("\n─── S1: Checkbox tracking ───");
 
-test("S1: untracked tool ignored by updateToolRegistry", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.updateToolRegistry({ id: "cursor", name: "Cursor" });
-  assert.equal(state.registry.size, 0);
-});
-
-test("S1: cleanupUntrackedTools removes tools no longer tracked", () => {
-  const state = createToolRegistryState(["vscode", "cursor"]);
-  state.seedTrackedTools([
+test("seedTrackedTools adds tracked available tools to registry", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([
     { id: "vscode", name: "VS Code", available: true },
     { id: "cursor", name: "Cursor", available: true }
   ]);
-  assert.equal(state.registry.size, 2);
-
-  // User unchecks cursor
-  state._tracked = ["vscode"];
-  const orig = state.registry;
-  // Simulate: tracked list updated, cleanup called
-  const state2 = createToolRegistryState(["vscode"]);
-  // Copy entries
-  for (const [id, entry] of orig) {
-    state2.registry.set(id, entry);
-  }
-  state2.cleanupUntrackedTools();
-  assert.equal(state2.registry.size, 1);
-  assert.equal(state2.registry.has("vscode"), true);
-  assert.equal(state2.registry.has("cursor"), false);
+  assert.equal(sm.registry.size, 1);
+  assert.ok(sm.registry.has("vscode"));
+  assert.equal(sm.registry.get("vscode").status, "online-background");
 });
 
-// ── Scenario 2: Foreground switch ──────────────────────────────────
-
-test("S2: foreground switch demotes old tool to background", () => {
-  const state = createToolRegistryState(["vscode", "cursor"]);
-  state.updateToolRegistry({ id: "vscode", name: "VS Code" });
-  assert.equal(state.registry.get("vscode").status, "online-foreground");
-
-  state.updateToolRegistry({ id: "cursor", name: "Cursor" });
-  assert.equal(state.registry.get("cursor").status, "online-foreground");
-  assert.equal(state.registry.get("vscode").status, "online-background");
+test("untracked tool ignored by updateToolRegistry", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.updateToolRegistry({
+    toolContext: { tool: { id: "cursor", name: "Cursor" } }
+  });
+  assert.equal(sm.registry.size, 0);
 });
 
-test("S2: multiple switches maintain correct states", () => {
-  const state = createToolRegistryState(["vscode", "cursor", "windsurf"]);
-  state.updateToolRegistry({ id: "vscode", name: "VS Code" });
-  state.updateToolRegistry({ id: "cursor", name: "Cursor" });
-  state.updateToolRegistry({ id: "windsurf", name: "Windsurf" });
+test("cleanupUntrackedTools removes tools no longer tracked", () => {
+  const tracked = ["vscode", "cursor"];
+  const { sm } = createTestSM({ tracked });
+  sm.seedTrackedTools([
+    { id: "vscode", name: "VS Code", available: true },
+    { id: "cursor", name: "Cursor", available: true }
+  ]);
+  assert.equal(sm.registry.size, 2);
 
-  assert.equal(state.registry.get("windsurf").status, "online-foreground");
-  assert.equal(state.registry.get("cursor").status, "online-background");
-  assert.equal(state.registry.get("vscode").status, "online-background");
+  // Remove cursor from tracked list
+  tracked.length = 0;
+  tracked.push("vscode");
+  sm.cleanupUntrackedTools();
+
+  assert.equal(sm.registry.size, 1);
+  assert.ok(sm.registry.has("vscode"));
+  assert.ok(!sm.registry.has("cursor"));
 });
 
-// ── Scenario 3: Idle after 10min ───────────────────────────────────
+// ── S2: Foreground switch demotion ─────────────────────────────────
 
-test("S3: online-background → idle after 10min", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
-  assert.equal(state.registry.get("vscode").status, "online-background");
+console.log("\n─── S2: Foreground switch ───");
 
-  advanceClock(TOOL_REGISTRY_IDLE_THRESHOLD_MS + 1);
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "idle");
+test("foreground switch demotes old tool to background", () => {
+  const { sm } = createTestSM({ tracked: ["vscode", "cursor"] });
+  sm.updateToolRegistry({
+    toolContext: { tool: { id: "vscode", name: "VS Code" } }
+  });
+  assert.equal(sm.registry.get("vscode").status, "online-foreground");
+
+  sm.updateToolRegistry({
+    toolContext: { tool: { id: "cursor", name: "Cursor" } }
+  });
+  assert.equal(sm.registry.get("cursor").status, "online-foreground");
+  assert.equal(sm.registry.get("vscode").status, "online-background");
 });
 
-test("S3: online-background stays background before 10min", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
-
-  advanceClock(TOOL_REGISTRY_IDLE_THRESHOLD_MS - 1000);
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "online-background");
+test("multiple switches maintain correct states", () => {
+  const { sm } = createTestSM({ tracked: ["vscode", "cursor", "claude"] });
+  sm.updateToolRegistry({ toolContext: { tool: { id: "vscode" } } });
+  sm.updateToolRegistry({ toolContext: { tool: { id: "cursor" } } });
+  sm.updateToolRegistry({ toolContext: { tool: { id: "claude" } } });
+  assert.equal(sm.registry.get("claude").status, "online-foreground");
+  assert.equal(sm.registry.get("cursor").status, "online-background");
+  assert.equal(sm.registry.get("vscode").status, "online-background");
 });
 
-test("S3: foreground tool is NOT affected by idle scan", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.updateToolRegistry({ id: "vscode", name: "VS Code" });
+// ── S3: 10min idle threshold ───────────────────────────────────────
 
-  advanceClock(TOOL_REGISTRY_IDLE_THRESHOLD_MS * 10);
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "online-foreground");
+console.log("\n─── S3: 10min idle threshold ───");
+
+const IDLE = 10 * 60 * 1000;
+
+test("online-background → idle after 10min", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
+  assert.equal(sm.registry.get("vscode").status, "online-background");
+
+  advanceClock(IDLE + 1);
+  sm.scanTrackedToolProcesses();
+  assert.equal(sm.registry.get("vscode").status, "idle");
 });
 
-// ── Scenario 4: Offline after 1h ───────────────────────────────────
+test("online-background stays background before 10min", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
 
-test("S4: idle → offline after 1h (from lastSeenAt)", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
-
-  // Advance past idle (10min)
-  advanceClock(TOOL_REGISTRY_IDLE_THRESHOLD_MS + 1);
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "idle");
-
-  // Advance past offline (1h total from lastSeenAt)
-  // lastSeenAt was set at seed time, so we need total > 1h
-  advanceClock(TOOL_REGISTRY_OFFLINE_THRESHOLD_MS - TOOL_REGISTRY_IDLE_THRESHOLD_MS + 1);
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "offline");
+  advanceClock(IDLE - 1000);
+  sm.scanTrackedToolProcesses();
+  assert.equal(sm.registry.get("vscode").status, "online-background");
 });
 
-test("S4: offline → deleted after 24h", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
+test("foreground tool is NOT affected by idle scan", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.updateToolRegistry({ toolContext: { tool: { id: "vscode" } } });
 
-  // Jump to past delete threshold (24h)
-  advanceClock(TOOL_REGISTRY_DELETE_THRESHOLD_MS + 1);
-  // First scan: background → idle (10min passed)
-  // idle → offline (1h passed)  
-  // offline → delete (24h passed) — but needs two scans
-  // Actually: elapsed > DELETE means it's already past delete,
-  // but state is still "online-background", so first scan transitions to idle
-  state.scanTrackedToolProcesses();
-  // Now it's idle, elapsed is still huge
-  state.scanTrackedToolProcesses();
-  // Now it's offline, elapsed is still huge
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.has("vscode"), false);
+  advanceClock(IDLE + 1);
+  sm.scanTrackedToolProcesses();
+  assert.equal(sm.registry.get("vscode").status, "online-foreground");
 });
 
-test("S4: offline has 23h visible window before delete", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
+// ── S4: 1h offline + 24h delete ────────────────────────────────────
 
-  // Jump to exactly offline time (1h + 1ms)
-  advanceClock(TOOL_REGISTRY_OFFLINE_THRESHOLD_MS + 1);
-  state.scanTrackedToolProcesses();
-  // Should be idle now (elapsed > 10min)
-  assert.equal(state.registry.get("vscode").status, "idle");
+console.log("\n─── S4: offline + delete thresholds ───");
 
-  // Need one more scan to get to offline (elapsed is based on lastSeenAt)
-  // Actually the scan checks each status independently in one pass:
-  // status=online-background, elapsed=1h → idle ✓
-  // But we need the NEXT scan where status=idle and elapsed > 1h
-  // Wait — the scan checks current status. After first scan it's idle.
-  // Second scan: status=idle, elapsed > 1h → offline
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "offline");
+const OFFLINE = 60 * 60 * 1000;
+const DELETE = 24 * 60 * 60 * 1000;
 
-  // Now advance to just before 24h (total from lastSeenAt)
-  advanceClock(TOOL_REGISTRY_DELETE_THRESHOLD_MS - TOOL_REGISTRY_OFFLINE_THRESHOLD_MS - 2);
-  state.scanTrackedToolProcesses();
-  assert.equal(state.registry.get("vscode").status, "offline");
-  assert.equal(state.registry.has("vscode"), true);
+test("idle → offline after 1h (from lastSeenAt)", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
+
+  // Go to idle
+  advanceClock(IDLE + 1);
+  sm.scanTrackedToolProcesses();
+  assert.equal(sm.registry.get("vscode").status, "idle");
+
+  // Go to offline (1h from lastSeenAt, not from idle transition)
+  advanceClock(OFFLINE - IDLE + 1);
+  sm.scanTrackedToolProcesses();
+  assert.equal(sm.registry.get("vscode").status, "offline");
 });
 
-// ── Scenario 5: Desktop snapshot refresh = 15s ─────────────────────
+test("offline → deleted after 24h", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
 
-test("S5: desktop-topbar mode returns settings refreshMs (15s)", () => {
-  const state = createToolRegistryState([]);
-  const delay = state.getSnapshotRefreshDelayMs("desktop-topbar");
-  assert.equal(delay, 15_000);
+  // Need 3 scans: online-background → idle → offline → delete
+  advanceClock(IDLE + 1);
+  sm.scanTrackedToolProcesses(); // → idle
+  assert.equal(sm.registry.get("vscode").status, "idle");
+
+  advanceClock(OFFLINE - IDLE + 1);
+  sm.scanTrackedToolProcesses(); // → offline
+  assert.equal(sm.registry.get("vscode").status, "offline");
+
+  advanceClock(DELETE - OFFLINE + 1);
+  sm.scanTrackedToolProcesses(); // → delete
+  assert.equal(sm.registry.size, 0);
 });
 
-// ── Scenario 6: Tool HUD refresh = 5min ────────────────────────────
+test("offline has 23h visible window before delete", () => {
+  const { sm } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
 
-test("S6: tool-hud mode returns TOOL_HUD_STEADY_REFRESH_MS (5min)", () => {
-  const state = createToolRegistryState([]);
-  const delay = state.getSnapshotRefreshDelayMs("tool-hud");
-  assert.equal(delay, TOOL_HUD_STEADY_REFRESH_MS);
-  assert.equal(delay, 5 * 60 * 1000);
+  // Reach offline state (need 2 scans: idle → offline)
+  advanceClock(IDLE + 1);
+  sm.scanTrackedToolProcesses(); // → idle
+  advanceClock(OFFLINE - IDLE + 1);
+  sm.scanTrackedToolProcesses(); // → offline
+  assert.equal(sm.registry.get("vscode").status, "offline");
+
+  // Still offline after 23h more (not yet at DELETE threshold from lastSeenAt)
+  const entry = sm.registry.get("vscode");
+  const timeToDelete = DELETE - (mockNow - entry.lastSeenAt);
+  advanceClock(timeToDelete - 2000); // 2s before delete
+  sm.scanTrackedToolProcesses();
+  assert.equal(sm.registry.get("vscode").status, "offline");
+  assert.equal(sm.registry.size, 1);
 });
 
-// ── Scenario 7: WorkBuddy HUD refresh = 2s ─────────────────────────
+// ── S5: Desktop snapshot refresh = settings.refreshMs ──────────────
 
-test("S7: workbuddy-hud mode returns WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS (2s)", () => {
-  const state = createToolRegistryState([]);
-  const delay = state.getSnapshotRefreshDelayMs("workbuddy-hud");
-  assert.equal(delay, WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS);
-  assert.equal(delay, 2000);
+console.log("\n─── S5: Desktop refresh delay ───");
+
+test("desktop-topbar mode returns settings.behavior.refreshMs", () => {
+  const { sm, setRefreshMs } = createTestSM({ overlayMode: "desktop-topbar", refreshMs: 15000 });
+  assert.equal(sm.getSnapshotRefreshDelayMs(), 15000);
+
+  setRefreshMs(20000);
+  assert.equal(sm.getSnapshotRefreshDelayMs(), 20000);
 });
 
-// ── Scenario 8: Hidden mode stops refresh (sentinel -1) ────────────
+// ── S6: Tool HUD = 5min steady ─────────────────────────────────────
 
-test("S8: hidden/unknown mode returns -1 (no refresh)", () => {
-  const state = createToolRegistryState([]);
-  assert.equal(state.getSnapshotRefreshDelayMs("hidden"), -1);
-  assert.equal(state.getSnapshotRefreshDelayMs("none"), -1);
-  assert.equal(state.getSnapshotRefreshDelayMs(undefined), -1);
-  assert.equal(state.getSnapshotRefreshDelayMs(null), -1);
+console.log("\n─── S6: Tool HUD refresh delay ───");
+
+test("tool-hud mode returns TOOL_HUD_STEADY_REFRESH_MS (5min)", () => {
+  const { sm } = createTestSM({ overlayMode: "tool-hud" });
+  assert.equal(sm.getSnapshotRefreshDelayMs(), 5 * 60 * 1000);
 });
 
-// ── Additional: Broadcast diff guard ───────────────────────────────
+// ── S7: WorkBuddy HUD = 2s ────────────────────────────────────────
+
+console.log("\n─── S7: WorkBuddy HUD refresh delay ───");
+
+test("tool-hud + WorkBuddy visible returns WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS (2s)", () => {
+  const { sm } = createTestSM({ overlayMode: "tool-hud", workBuddyVisible: true });
+  assert.equal(sm.getSnapshotRefreshDelayMs(), 2000);
+});
+
+test("tool-hud + WorkBuddy not visible returns 5min", () => {
+  const { sm } = createTestSM({ overlayMode: "tool-hud", workBuddyVisible: false });
+  assert.equal(sm.getSnapshotRefreshDelayMs(), 5 * 60 * 1000);
+});
+
+// ── S8: Hidden mode sentinel -1 ────────────────────────────────────
+
+console.log("\n─── S8: Hidden mode sentinel ───");
+
+test("unknown/null mode returns -1 (no refresh)", () => {
+  const { sm } = createTestSM({ overlayMode: null });
+  assert.equal(sm.getSnapshotRefreshDelayMs(), -1);
+});
+
+test("random mode returns -1", () => {
+  const { sm } = createTestSM({ overlayMode: "something-else" });
+  assert.equal(sm.getSnapshotRefreshDelayMs(), -1);
+});
+
+// ── Additional: broadcast diff guard ───────────────────────────────
+
+console.log("\n─── Extra: broadcast + timer guards ───");
 
 test("broadcast: no-op if registry unchanged", () => {
-  // This is tested implicitly — if we call scanTrackedToolProcesses
-  // and nothing changed, broadcast should not fire.
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
-
-  // Scan with no time change → no status change → broadcast should be no-op
-  const changed = state.scanTrackedToolProcesses();
-  assert.equal(changed, false);
+  const { sm, broadcasts } = createTestSM({ tracked: ["vscode"] });
+  sm.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
+  const countBefore = broadcasts.length;
+  sm.broadcastState(); // same data
+  assert.equal(broadcasts.length, countBefore); // no new broadcast
 });
 
 test("broadcast: fires when status actually changes", () => {
-  const state = createToolRegistryState(["vscode"]);
-  state.seedTrackedTools([{ id: "vscode", name: "VS Code", available: true }]);
+  const { sm, broadcasts } = createTestSM({ tracked: ["vscode", "cursor"] });
+  // Set vscode to foreground
+  sm.updateToolRegistry({ toolContext: { tool: { id: "vscode" } } });
+  // Demote to background by switching to cursor
+  sm.updateToolRegistry({ toolContext: { tool: { id: "cursor" } } });
+  const countAfterSetup = broadcasts.length;
 
-  advanceClock(TOOL_REGISTRY_IDLE_THRESHOLD_MS + 1);
-  const changed = state.scanTrackedToolProcesses();
-  assert.equal(changed, true);
+  // Now advance past idle threshold
+  advanceClock(IDLE + 1);
+  sm.scanTrackedToolProcesses(); // vscode should go idle
+  assert.ok(broadcasts.length > countAfterSetup);
 });
 
-// ── Additional: Timer guard ────────────────────────────────────────
-
-test("scheduleToolProcessScan: returns early when registry is empty", () => {
-  // We can't easily test the real timer here, but we verify the guard logic:
-  // if (toolRegistry.size === 0) return;
-  const state = createToolRegistryState(["vscode"]);
-  assert.equal(state.registry.size, 0);
-  // scheduleToolProcessScan would return early — verified by code inspection
-  // and by the fact that registry.size === 0 is the guard condition
-  assert.equal(state.registry.size === 0, true);
+test("scheduleScan: returns early when registry is empty", () => {
+  const { sm } = createTestSM();
+  // Should not throw, should be a no-op
+  sm.scheduleScan();
+  sm.stopScan();
 });
 
 // ── Summary ────────────────────────────────────────────────────────
 
-console.log(`\n${"═".repeat(55)}`);
-console.log(`Tool State Machine Tests: ${passed} passed, ${failed} failed`);
-console.log(`${"═".repeat(55)}`);
+console.log("\n═══════════════════════════════════════════════");
+console.log(`Tool State Machine Tests: ${passCount} passed, ${failCount} failed`);
+console.log("═══════════════════════════════════════════════");
 
-if (failed > 0) {
-  console.log("\n❌ FAILED — review above errors");
+if (failCount > 0) {
+  console.log("\n❌ Some tests failed");
   process.exit(1);
 } else {
-  console.log("\n✅ All 8 acceptance scenarios verified with mock clocks");
-  process.exit(0);
+  console.log("\n✅ All 8 acceptance scenarios verified against REAL tool-registry.cjs");
 }
