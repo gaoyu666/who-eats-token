@@ -11,13 +11,13 @@ WorkBuddy uses `workbuddy-local` by default. When the provider is enabled, the d
 One-shot report:
 
 ```powershell
-npm run workbuddy:status -- --model hunyuan-t1 --remaining-credits 4200 --total-credits 5000
+npm run workbuddy:status -- -- --model hunyuan-t1 --remaining-credits 4200 --total-credits 5000
 ```
 
 Watch a local status file for near-real-time updates:
 
 ```powershell
-npm run workbuddy:status -- --file .\workbuddy-status.json --watch
+npm run workbuddy:status -- -- --file .\workbuddy-status.json --watch
 ```
 
 Example status file:
