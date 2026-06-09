@@ -143,7 +143,8 @@ const ACTIVE_TOOL_TTL_MS = 10 * 60 * 1000;
 const HUD_DEBUG_LOG_MAX_BYTES = 1 * 1024 * 1024;
 const CODEX_SESSION_WATCH_DEBOUNCE_MS = 750;
 const TOOL_REGISTRY_IDLE_THRESHOLD_MS = 10 * 60 * 1000;
-const TOOL_REGISTRY_OFFLINE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+const TOOL_REGISTRY_OFFLINE_THRESHOLD_MS = 60 * 60 * 1000;
+const TOOL_REGISTRY_DELETE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
 const TOOL_PROCESS_SCAN_MS = 30_000;
 const SETTINGS_WIDTH = 420;
 const SETTINGS_HEIGHT = 560;
@@ -2023,12 +2024,21 @@ function scanTrackedToolProcesses() {
   for (const [id, entry] of toolRegistry) {
     if (entry.status === "online-foreground") continue;
     const elapsed = now - entry.lastSeenAt;
-    if (elapsed > TOOL_REGISTRY_OFFLINE_THRESHOLD_MS) {
-      toolRegistry.delete(id);
-      changed = true;
-    } else if (elapsed > TOOL_REGISTRY_IDLE_THRESHOLD_MS && entry.status !== "idle") {
-      entry.status = "idle";
-      changed = true;
+    if (entry.status === "online-background") {
+      if (elapsed > TOOL_REGISTRY_IDLE_THRESHOLD_MS) {
+        entry.status = "idle";
+        changed = true;
+      }
+    } else if (entry.status === "idle") {
+      if (elapsed > TOOL_REGISTRY_OFFLINE_THRESHOLD_MS) {
+        entry.status = "offline";
+        changed = true;
+      }
+    } else if (entry.status === "offline") {
+      if (elapsed > TOOL_REGISTRY_DELETE_THRESHOLD_MS) {
+        toolRegistry.delete(id);
+        changed = true;
+      }
     }
   }
   if (changed) broadcastToolRegistry();
