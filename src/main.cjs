@@ -7,6 +7,7 @@ const { collectCodexUsage } = require("./collectors/codex.cjs");
 const { collectHermesUsage } = require("./collectors/hermes-local.cjs");
 const { getProviderRegistry } = require("./config/providers.cjs");
 const { loadSettings, saveSettings, sanitizeSettings } = require("./config/settings.cjs");
+const { scanAvailableTools } = require("./system/tool-scanner.cjs");
 const { ensureHermesOverlayInstalled } = require("./integrations/hermes-overlay-installer.cjs");
 const {
   boundsOverlap,
@@ -141,6 +142,9 @@ const HIDDEN_SNAPSHOT_REFRESH_MS = 5 * 60 * 1000;
 const ACTIVE_TOOL_TTL_MS = 10 * 60 * 1000;
 const HUD_DEBUG_LOG_MAX_BYTES = 1 * 1024 * 1024;
 const CODEX_SESSION_WATCH_DEBOUNCE_MS = 750;
+const TOOL_REGISTRY_IDLE_THRESHOLD_MS = 10 * 60 * 1000;
+const TOOL_REGISTRY_OFFLINE_THRESHOLD_MS = 24 * 60 * 60 * 1000;
+const TOOL_PROCESS_SCAN_MS = 30_000;
 const SETTINGS_WIDTH = 420;
 const SETTINGS_HEIGHT = 560;
 const TREND_WINDOW_MS = 15 * 60 * 1000;
@@ -212,6 +216,9 @@ let toolDesktopWakeProbeBuffer = "";
 let systemTimer = null;
 let codexSessionWatcher = null;
 let codexSessionWatchTimer = null;
+let toolRegistry = new Map();
+let lastBroadcastRegistry = null;
+let toolProcessScanTimer = null;
 let isQuitting = false;
 let desktopBarMouseInteractive = null;
 let toolHudHitboxMouseInteractive = null;
@@ -971,11 +978,14 @@ async function applyOverlayTransition(decision, previousDecision) {
     return;
   }
 
+  updateToolRegistry(decision);
+
   if (decision.mode === SURFACES.DESKTOP) {
     clearToolDesktopWake();
     clearToolDecisionSnapshotRefresh();
     hideToolHudForDesktop(decision.activeWindow);
     showDesktopBarForTransition(decision);
+    if (!snapshotInFlight) sendSnapshot();
     scheduleNextSnapshotRefresh();
     writeOverlayDecisionDebug(decision, previousDecision);
     return;
@@ -1919,7 +1929,9 @@ function scheduleNextSnapshotRefresh(delayMs = getSnapshotRefreshDelayMs()) {
     clearTimeout(snapshotTimer);
     snapshotTimer = null;
   }
-  const delay = clampNumber(delayMs, settings.behavior.refreshMs, TOOL_HUD_STEADY_REFRESH_MS);
+  if (delayMs < 0) return;
+  const refreshBounds = getSnapshotRefreshBounds();
+  const delay = clampNumber(delayMs, refreshBounds.min, refreshBounds.max);
   snapshotTimer = setTimeout(() => {
     snapshotTimer = null;
     sendSnapshot();
@@ -1932,9 +1944,108 @@ function getSnapshotRefreshDelayMs() {
     return settings.behavior.refreshMs;
   }
   if (latestOverlayDecision?.mode === "tool-hud") {
+    if (isWorkBuddyToolHudVisible()) return WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS;
     return TOOL_HUD_STEADY_REFRESH_MS;
   }
-  return HIDDEN_SNAPSHOT_REFRESH_MS;
+  return -1;
+}
+
+function isToolTracked(toolId) {
+  return settings.tools.tracked.includes(toolId);
+}
+
+function updateToolRegistry(decision) {
+  const tool = decision.toolContext?.tool;
+  if (!tool || !isToolTracked(tool.id)) return;
+  const now = Date.now();
+  toolRegistry.set(tool.id, {
+    id: tool.id,
+    name: tool.name,
+    providerIds: tool.providerIds,
+    status: "online-foreground",
+    lastSeenAt: now
+  });
+  for (const [id, entry] of toolRegistry) {
+    if (id !== tool.id && entry.status === "online-foreground") {
+      entry.status = "online-background";
+    }
+  }
+  broadcastToolRegistry();
+}
+
+function broadcastToolRegistry() {
+  const data = Array.from(toolRegistry.values());
+  const json = JSON.stringify(data);
+  if (json === lastBroadcastRegistry) return;
+  lastBroadcastRegistry = json;
+  safeSend(desktopBarWindow, "tool-registry:update", data);
+}
+
+function seedTrackedTools() {
+  const available = scanAvailableTools();
+  const now = Date.now();
+  for (const tool of available) {
+    if (!isToolTracked(tool.id)) continue;
+    if (toolRegistry.has(tool.id)) continue;
+    if (tool.available) {
+      toolRegistry.set(tool.id, {
+        id: tool.id,
+        name: tool.name,
+        providerIds: tool.providerIds,
+        status: "online-background",
+        lastSeenAt: now
+      });
+    }
+  }
+  broadcastToolRegistry();
+}
+
+function scheduleToolProcessScan() {
+  if (toolProcessScanTimer) return;
+  if (toolRegistry.size === 0) return;
+  toolProcessScanTimer = setTimeout(() => {
+    toolProcessScanTimer = null;
+    scanTrackedToolProcesses();
+    scheduleToolProcessScan();
+  }, TOOL_PROCESS_SCAN_MS);
+  toolProcessScanTimer.unref?.();
+}
+
+function stopToolProcessScan() {
+  if (!toolProcessScanTimer) return;
+  clearTimeout(toolProcessScanTimer);
+  toolProcessScanTimer = null;
+}
+
+function scanTrackedToolProcesses() {
+  const now = Date.now();
+  let changed = false;
+  for (const [id, entry] of toolRegistry) {
+    if (entry.status === "online-foreground") continue;
+    const elapsed = now - entry.lastSeenAt;
+    if (elapsed > TOOL_REGISTRY_OFFLINE_THRESHOLD_MS) {
+      toolRegistry.delete(id);
+      changed = true;
+    } else if (elapsed > TOOL_REGISTRY_IDLE_THRESHOLD_MS && entry.status !== "idle") {
+      entry.status = "idle";
+      changed = true;
+    }
+  }
+  if (changed) broadcastToolRegistry();
+}
+
+function cleanupUntrackedTools() {
+  let changed = false;
+  for (const [id] of toolRegistry) {
+    if (!isToolTracked(id)) {
+      toolRegistry.delete(id);
+      changed = true;
+    }
+  }
+  if (changed) {
+    broadcastToolRegistry();
+    if (toolRegistry.size === 0) stopToolProcessScan();
+  }
 }
 
 function refreshVisibleHudPayloadFromSnapshot(snapshot) {
@@ -2379,6 +2490,9 @@ function applySettings(previous, current) {
   scheduleTimers();
   broadcastSettings();
   updateTray();
+  cleanupUntrackedTools();
+  seedTrackedTools();
+  scheduleToolProcessScan();
   refreshOverlayCoordinator();
   sendSnapshot();
 }
@@ -2554,6 +2668,8 @@ ipcMain.handle("hud:snapshot", () => latestHudPayload);
 ipcMain.handle("settings:get", () => getPublicSettings());
 ipcMain.handle("setup:info", () => getLocalSetupInfo());
 ipcMain.handle("guide:open", (_event, guide) => openGuideDocument(guide));
+ipcMain.handle("tools:scan", () => scanAvailableTools());
+ipcMain.handle("tools:registry", () => Array.from(toolRegistry.values()));
 ipcMain.handle("settings:save", (_event, nextSettings) => updateSettings(nextSettings));
 ipcMain.handle("settings:preview", (_event, nextSettings) => previewSettings(nextSettings));
 ipcMain.handle("settings:reset", () => updateSettings(sanitizeSettings()));
@@ -2599,6 +2715,8 @@ app.whenReady().then(() => {
   restartIngestServer();
   restartHermesBridge();
   restartCodexSessionWatcher();
+  seedTrackedTools();
+  scheduleToolProcessScan();
   if (!headless) {
     createDesktopBarWindow();
     createToolHudWindow();
@@ -2636,6 +2754,7 @@ app.on("will-quit", () => {
   clearToolDesktopWake();
   if (systemTimer) clearInterval(systemTimer);
   stopCodexSessionWatcher();
+  stopToolProcessScan();
   closeServer(ingestServer);
   closeServer(hermesBridgeServer);
 });

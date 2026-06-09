@@ -134,12 +134,13 @@ function classifyInterval(occurrence) {
       line.includes("snapshotTimer =")
       || line.includes("systemTimer =")
       || line.includes("desktopBarTimer =")
+      || line.includes("toolProcessScanTimer =")
     )
   ) {
     return {
       ...occurrence,
       classification: "reviewed-runtime",
-      reason: "Bounded desktop/runtime refresh timer covered by docs/performance-budget.md"
+      reason: "Bounded desktop/runtime timer covered by docs/performance-budget.md"
     };
   }
 

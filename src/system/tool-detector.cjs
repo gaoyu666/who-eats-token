@@ -294,5 +294,6 @@ module.exports = {
   detectTool,
   getHudCoveringDialog,
   isDialogWindow,
-  shouldSuppressHud
+  shouldSuppressHud,
+  TOOL_RULES
 };

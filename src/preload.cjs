@@ -19,6 +19,13 @@ contextBridge.exposeInMainWorld("tokenBar", {
   resizeHudTrustPopover: (size) => ipcRenderer.invoke("hud-trust-popover:resize", size),
   toggleExpanded: () => ipcRenderer.invoke("window:toggle-expanded"),
   close: () => ipcRenderer.invoke("window:close"),
+  scanAvailableTools: () => ipcRenderer.invoke("tools:scan"),
+  getToolRegistry: () => ipcRenderer.invoke("tools:registry"),
+  onToolRegistryUpdate: (callback) => {
+    const listener = (_event, data) => callback(data);
+    ipcRenderer.on("tool-registry:update", listener);
+    return () => ipcRenderer.removeListener("tool-registry:update", listener);
+  },
   onUpdate: (callback) => {
     const listener = (_event, snapshot) => callback(snapshot);
     ipcRenderer.on("metrics:update", listener);

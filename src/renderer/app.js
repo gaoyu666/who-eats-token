@@ -32,7 +32,8 @@ const els = {
   tokenFlow: document.getElementById("tokenFlow"),
   roamingMascot: document.getElementById("roamingMascot"),
   roamingMascotImage: document.getElementById("roamingMascotImage"),
-  details: document.getElementById("details")
+  details: document.getElementById("details"),
+  toolStrip: document.getElementById("toolStrip")
 };
 
 const ROAMING_MASCOT_SCENES = [
@@ -115,8 +116,10 @@ window.addEventListener("blur", () => {
 window.tokenBar.onUpdate(render);
 window.tokenBar.onSystemUpdate?.(renderSystemStrip);
 window.tokenBar.onSettingsUpdate(applyVisualSettings);
+window.tokenBar.onToolRegistryUpdate?.(renderToolStrip);
 window.tokenBar.getSnapshot().then(render);
 window.tokenBar.getSettings().then(applyVisualSettings);
+window.tokenBar.getToolRegistry?.().then(renderToolStrip);
 setupDesktopBarPointerRegion();
 setupRoamingMascot();
 
@@ -645,6 +648,29 @@ function renderMetric(metric, valueElement, value, options = {}) {
   metric.dataset.level = getRemainingLevel(levelValue);
   metric.dataset.format = options.format || "percent";
   metric.style.setProperty("--metric-color", getMetricColor(options.colorRole || metric.id, levelValue));
+}
+
+function renderToolStrip(tools) {
+  const container = els.toolStrip;
+  if (!container) return;
+  if (!Array.isArray(tools) || tools.length === 0) {
+    container.replaceChildren();
+    return;
+  }
+  const frag = document.createDocumentFragment();
+  for (const tool of tools) {
+    const chip = document.createElement("div");
+    chip.className = `tool-chip status-${tool.status}`;
+    const dot = document.createElement("span");
+    dot.className = "tool-dot";
+    const name = document.createElement("span");
+    name.className = "tool-name";
+    name.textContent = tool.name;
+    chip.appendChild(dot);
+    chip.appendChild(name);
+    frag.appendChild(chip);
+  }
+  container.replaceChildren(frag);
 }
 
 function renderProviderStrip(providers) {

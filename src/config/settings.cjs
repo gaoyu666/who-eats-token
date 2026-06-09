@@ -1,11 +1,17 @@
 const fs = require("node:fs");
 const path = require("node:path");
 const { buildDefaultProviderSettings } = require("./providers.cjs");
+const { TOOL_RULES } = require("../system/tool-detector.cjs");
 
 const SETTINGS_FILE = "settings.json";
+const VALID_TOOL_IDS = new Set(TOOL_RULES.map((rule) => rule.id));
+const DEFAULT_TRACKED_TOOLS = TOOL_RULES.map((rule) => rule.id);
 
 const DEFAULT_SETTINGS = {
   version: 1,
+  tools: {
+    tracked: DEFAULT_TRACKED_TOOLS
+  },
   appearance: {
     glassOpacity: 0.43,
     glassBlur: 28,
@@ -109,6 +115,7 @@ function sanitizeSettings(input) {
   settings.alertThresholds.critical = clampInteger(settings.alertThresholds.critical, 1, 30, 10);
   settings.alertThresholds.danger = clampInteger(settings.alertThresholds.danger, settings.alertThresholds.critical + 1, 60, 20);
   settings.alertThresholds.caution = clampInteger(settings.alertThresholds.caution, settings.alertThresholds.danger + 1, 90, 40);
+  settings.tools.tracked = sanitizeTrackedTools(settings.tools.tracked);
 
   for (const [id, defaultProvider] of Object.entries(DEFAULT_SETTINGS.providers)) {
     const provider = settings.providers?.[id] || defaultProvider;
@@ -128,10 +135,18 @@ function pickKnownSettings(input) {
   const output = {};
   for (const [section, defaults] of Object.entries(DEFAULT_SETTINGS)) {
     if (section === "providers") continue;
-    if (!input[section] || typeof input[section] !== "object" || Array.isArray(input[section])) continue;
+    if (!input[section] || typeof input[section] !== "object") continue;
+    if (Array.isArray(defaults)) {
+      output[section] = input[section];
+      continue;
+    }
     output[section] = {};
     for (const key of Object.keys(defaults)) {
-      if (Object.hasOwn(input[section], key)) output[section][key] = input[section][key];
+      if (Object.hasOwn(input[section], key)) {
+        output[section][key] = Array.isArray(defaults[key])
+          ? input[section][key]
+          : input[section][key];
+      }
     }
   }
   if (input.providers && typeof input.providers === "object" && !Array.isArray(input.providers)) {
@@ -145,6 +160,12 @@ function pickKnownSettings(input) {
     }
   }
   return output;
+}
+
+function sanitizeTrackedTools(input) {
+  if (!Array.isArray(input)) return DEFAULT_TRACKED_TOOLS;
+  const valid = input.filter((id) => typeof id === "string" && VALID_TOOL_IDS.has(id));
+  return valid.length > 0 ? [...new Set(valid)] : DEFAULT_TRACKED_TOOLS;
 }
 
 function clampInteger(value, min, max, fallback) {

@@ -14,6 +14,7 @@ Who Eats Token should stay boring in the background: visible enough to help, qui
 | Hermes Web UI overlay script | opt-in and event-driven, no `setInterval` | DOM scanning is the highest-risk lag source. |
 | Debug HUD logs | off by default, cap `<= 1MB` | Debugging should not become a disk or memory leak. |
 | Port retry (EADDRINUSE) | `10s` interval, `.unref()`, cleared on listen/close | Only fires when port is occupied; recovers automatically without manual restart. |
+| Tool process scan | `30s`, only active when tracked tools exist, cleared on empty registry | Periodic liveness check for tracked tools; guarded by `toolRegistry.size === 0` check. |
 
 `npm run adapter:guard` statically checks the browser and IDE adapter privacy/performance boundary: precise browser permissions, no prompt/completion scraping APIs, usage payload allowlists, short IDE timeouts, and no unbounded polling.
 
