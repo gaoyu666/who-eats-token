@@ -919,6 +919,24 @@ async function resolveOverlayDecision(activeWindow) {
   const toolContext = settingsDecision?.preserveMode === SURFACES.TOOL
     ? settingsDecision.preservedDecision?.toolContext || latestOverlayDecision?.toolContext || null
     : getForegroundToolContext(activeWindow);
+
+  // ── Debug diagnostics (toggle via DEBUG_OVERLAY env var) ──
+  if (process.env.DEBUG_OVERLAY === "1") {
+    console.log(`[OVERLAY-DIAG #${sampleId}] mode=${latestOverlayDecision?.mode}`, {
+      activeWindow: activeWindow ? {
+        processName: activeWindow.processName,
+        title: (activeWindow.title || "").slice(0, 80),
+        className: activeWindow.className,
+        isDesktopForeground: activeWindow ? isDesktopForegroundWindow(activeWindow, "win32") : null,
+        samplingNoise: Boolean(activeWindow?.samplingNoise),
+        fullscreenForeground: isForegroundFullscreen(activeWindow)
+      } : null,
+      detectedTool: toolContext?.tool || null,
+      settingsDecision: settingsDecision ? { preserveMode: settingsDecision.preserveMode } : null,
+      desktopBarEnabled: settings.windows?.desktopBarEnabled,
+      toolHudEnabled: settings.windows?.toolHudEnabled
+    });
+  }
   const decision = overlayController.resolve({
     sampleId,
     activeWindow,
