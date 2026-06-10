@@ -15,6 +15,7 @@ const {
 } = require("../src/main/ipc-guards.cjs");
 
 const mainSource = read("src/main.cjs");
+const toolRegistrySource = read("src/system/tool-registry.cjs");
 const wakeProbeSource = read("src/main/wake-probe.ps1");
 const activeWindowSource = read("src/system/active-window.cjs");
 const settingsSource = read("src/config/settings.cjs");
@@ -106,8 +107,8 @@ assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_MS", 50, 150);
 assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_TIMEOUT_MS", 50, 200);
 assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS", 40, 150);
 assert.ok(
-  /const\s+TOOL_HUD_STEADY_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(mainSource),
-  "Tool HUD steady-state provider refresh should stay at 5 minutes."
+  /const\s+TOOL_HUD_STEADY_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(toolRegistrySource),
+  "Tool HUD steady-state provider refresh should stay at 5 minutes (in tool-registry.cjs)."
 );
 assert.ok(
   /const\s+HIDDEN_SNAPSHOT_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(mainSource),
