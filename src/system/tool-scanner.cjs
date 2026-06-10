@@ -26,6 +26,10 @@ const INSTALL_PROBES = {
   qwen: () => true,
   doubao: () => true,
   "vscode-ai": () => {
+    // VS Code is always "available" — the AI plugin check is informational only.
+    // Plain VS Code matches via processName === "code" in tool-detector.cjs.
+    const codeDir = path.join(os.homedir(), "AppData", "Local", "Programs", "Microsoft VS Code");
+    if (fs.existsSync(codeDir)) return true;
     const extDir = path.join(os.homedir(), ".vscode", "extensions");
     if (!fs.existsSync(extDir)) return false;
     try {

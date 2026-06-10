@@ -668,6 +668,13 @@ function renderToolStrip(tools) {
     name.textContent = tool.name;
     chip.appendChild(dot);
     chip.appendChild(name);
+    const statusLabels = {
+      "online-foreground": "前台",
+      "online-background": "后台",
+      "idle": "空闲",
+      "offline": "无信号"
+    };
+    chip.title = `${tool.name} · ${statusLabels[tool.status] || tool.status}`;
     frag.appendChild(chip);
   }
   container.replaceChildren(frag);
