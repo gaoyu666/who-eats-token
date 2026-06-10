@@ -921,20 +921,30 @@ async function resolveOverlayDecision(activeWindow) {
     : getForegroundToolContext(activeWindow);
 
   // ── Debug diagnostics (toggle via DEBUG_OVERLAY env var) ──
+  const _dbgShow = shouldShowDesktopBar(activeWindow);
+  const _dbgSampling = !settingsDecision && isForegroundSamplingNoise(activeWindow);
+  const _dbgDesktop = !settingsDecision && _dbgShow;
+  const _dbgFullscreen = !settingsDecision && isForegroundFullscreen(activeWindow);
   if (process.env.DEBUG_OVERLAY === "1") {
-    console.log(`[OVERLAY-DIAG #${sampleId}] mode=${latestOverlayDecision?.mode}`, {
+    console.log(`[OVERLAY-DIAG #${sampleId}] prev=${latestOverlayDecision?.mode}`, {
       activeWindow: activeWindow ? {
         processName: activeWindow.processName,
-        title: (activeWindow.title || "").slice(0, 80),
+        title: (activeWindow.title || "").slice(0, 60),
         className: activeWindow.className,
-        isDesktopForeground: activeWindow ? isDesktopForegroundWindow(activeWindow, "win32") : null,
+        source: activeWindow.source,
+        isDesktopForeground: isDesktopForegroundWindow(activeWindow, "win32"),
         samplingNoise: Boolean(activeWindow?.samplingNoise),
-        fullscreenForeground: isForegroundFullscreen(activeWindow)
+        desktopClear: activeWindow?.desktop?.clear,
+        desktopBlockerCount: activeWindow?.desktop?.blockerCount
       } : null,
-      detectedTool: toolContext?.tool || null,
-      settingsDecision: settingsDecision ? { preserveMode: settingsDecision.preserveMode } : null,
-      desktopBarEnabled: settings.windows?.desktopBarEnabled,
-      toolHudEnabled: settings.windows?.toolHudEnabled
+      inputs: {
+        shouldShowDesktopBar: _dbgShow,
+        samplingNoise: _dbgSampling,
+        desktopVisible: _dbgDesktop,
+        fullscreenForeground: _dbgFullscreen,
+        toolContext: toolContext?.tool?.id || null,
+        desktopBarEnabled: settings.windows?.desktopBarEnabled
+      }
     });
   }
   const decision = overlayController.resolve({
@@ -949,6 +959,9 @@ async function resolveOverlayDecision(activeWindow) {
     desktopBarEnabled: settings.windows.desktopBarEnabled,
     toolHudEnabled: settings.windows.toolHudEnabled
   });
+  if (process.env.DEBUG_OVERLAY === "1") {
+    console.log(`[OVERLAY-RESOLVED #${sampleId}] → ${decision.surface} (${decision.reason})${decision.noise ? " [NOISE]" : ""}`);
+  }
 
   return {
     ...decision,
