@@ -1965,6 +1965,13 @@ function scheduleNextSnapshotRefresh(delayMs = getSnapshotRefreshDelayMs()) {
   snapshotTimer.unref?.();
 }
 
+function getSnapshotRefreshBounds() {
+  return {
+    min: toolSM.WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS || 1000,
+    max: Math.max(toolSM.TOOL_HUD_STEADY_REFRESH_MS || 0, HIDDEN_SNAPSHOT_REFRESH_MS)
+  };
+}
+
 function getSnapshotRefreshDelayMs() {
   return toolSM.getSnapshotRefreshDelayMs();
 }
