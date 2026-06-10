@@ -135,7 +135,7 @@ const OVERLAY_DEFERRED_RETRY_MS = 75;
 const OVERLAY_DEFERRED_RETRY_MAX_MS = 600;
 const OVERLAY_ACTIVE_WINDOW_TIMEOUT_MS = 1000;
 const TOOL_DESKTOP_WAKE_MS = 75;
-const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 120;
+const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 300;
 const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;
 const TOOL_TRANSITION_SNAPSHOT_DELAY_MS = OVERLAY_COORDINATOR_REFRESH_MS;
 const HIDDEN_SNAPSHOT_REFRESH_MS = 5 * 60 * 1000;
@@ -188,7 +188,7 @@ let latestOverlayDecision = { mode: "hidden", reason: "startup" };
 let latestOverlayDecisionVersion = 0;
 let overlaySampleSequence = 0;
 const overlayController = createOverlayController({
-  noiseGraceMs: 300,
+  noiseGraceMs: 500,
   confirmedLatencyMs: 400
 });
 let snapshotInFlight = false;
@@ -924,7 +924,7 @@ async function resolveOverlayDecision(activeWindow) {
   const _dbgShow = shouldShowDesktopBar(activeWindow);
   const _dbgSampling = !settingsDecision && isForegroundSamplingNoise(activeWindow);
   const _dbgDesktop = !settingsDecision && _dbgShow;
-  const _dbgFullscreen = !settingsDecision && isForegroundFullscreen(activeWindow);
+  const _dbgFullscreen = !settingsDecision && !isDesktopForegroundWindow(activeWindow, process.platform) && isForegroundFullscreen(activeWindow);
   if (process.env.DEBUG_OVERLAY === "1") {
     console.log(`[OVERLAY-DIAG #${sampleId}] prev=${latestOverlayDecision?.mode}`, {
       activeWindow: activeWindow ? {
@@ -955,7 +955,7 @@ async function resolveOverlayDecision(activeWindow) {
     samplingNoise: !settingsDecision && isForegroundSamplingNoise(activeWindow),
     noiseReason: activeWindow?.foregroundFallbackReason || "foreground-sampling-noise",
     desktopVisible: !settingsDecision && shouldShowDesktopBar(activeWindow),
-    fullscreenForeground: !settingsDecision && isForegroundFullscreen(activeWindow),
+    fullscreenForeground: !settingsDecision && !isDesktopForegroundWindow(activeWindow, process.platform) && isForegroundFullscreen(activeWindow),
     desktopBarEnabled: settings.windows.desktopBarEnabled,
     toolHudEnabled: settings.windows.toolHudEnabled
   });
