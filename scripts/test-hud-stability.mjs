@@ -414,12 +414,12 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /createOverlayController\(\{[\s\S]*?noiseGraceMs: 300,[\s\S]*?confirmedLatencyMs: 400/,
+    /createOverlayController\(\{[\s\S]*?noiseGraceMs: 500,[\s\S]*?confirmedLatencyMs: 400/,
     "Overlay arbitration should be centralized in a state controller with bounded sampling-noise preservation."
   );
   assert.match(
     mainSource,
-    /overlayController\.resolve\(\{[\s\S]*?samplingNoise: !settingsDecision && isForegroundSamplingNoise\(activeWindow\)[\s\S]*?desktopVisible: !settingsDecision && shouldShowDesktopBar\(activeWindow\)[\s\S]*?fullscreenForeground: !settingsDecision && isForegroundFullscreen\(activeWindow\)/,
+    /overlayController\.resolve\(\{[\s\S]*?samplingNoise: !settingsDecision && isForegroundSamplingNoise\(activeWindow\)[\s\S]*?desktopVisible: !settingsDecision && shouldShowDesktopBar\(activeWindow\)[\s\S]*?fullscreenForeground: !settingsDecision && !isDesktopForegroundWindow\(activeWindow, process\.platform\) && isForegroundFullscreen\(activeWindow\)/,
     "Foreground samples should be classified once and then handed to the overlay state controller."
   );
   assert.match(
@@ -429,7 +429,7 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /const TOOL_DESKTOP_WAKE_MS = 75;[\s\S]*?const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 120;[\s\S]*?const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;/,
+    /const TOOL_DESKTOP_WAKE_MS = 75;[\s\S]*?const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 300;[\s\S]*?const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;/,
     "Tool-to-desktop transitions should have a bounded lightweight wake path for immediate HUD suppression."
   );
   assert.match(
@@ -444,8 +444,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     activeWindowSource,
-    /shouldUseNativeDesktopFallbackOnly\(foregroundFallbackReason, options\)[\s\S]*?getNativeDesktopWindow\(options, nativeWindow\)[\s\S]*?function shouldUseNativeDesktopFallbackOnly\(reason, options = \{\}\) \{[\s\S]*?nativeDesktopFallbackOnly === true[\s\S]*?shouldPreferDesktopBaseForForegroundFallback\(reason\)/,
-    "The tool-desktop wake path should bypass PowerShell fallback and use native desktop-base selection only for ignored/external overlays."
+    /const preferredDesktopWindow = shouldPreferDesktopBaseForForegroundFallback\(foregroundFallbackReason\)[\s\S]*?getNativeDesktopWindow\(options, nativeWindow\)[\s\S]*?preferredDesktopWindow && !preferredDesktopWindow\.samplingNoise[\s\S]*?return preferredDesktopWindow[\s\S]*?shouldUseNativeDesktopFallbackOnly\(foregroundFallbackReason, options\)[\s\S]*?return preferredDesktopWindow \|\|[\s\S]*?function shouldPreferDesktopBaseForForegroundFallback\(reason\)[\s\S]*?reason === "ignored-window"[\s\S]*?reason === "external-overlay"[\s\S]*?reason === "zero-sized-helper"[\s\S]*?reason === "offscreen-small-helper"/,
+    "Fast desktop fallback should try native desktop-base selection before slow PowerShell for owned, external, zero-sized, or offscreen helper foregrounds."
   );
   assert.match(
     mainSource,

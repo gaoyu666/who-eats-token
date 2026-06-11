@@ -104,7 +104,7 @@ assert.equal(guardHudTrustPopoverSize({ height: 99999 }).height, 720);
 assertNumericConstant(mainSource, "SYSTEM_REFRESH_MS", 2000, Infinity);
 assertNumericConstant(mainSource, "OVERLAY_COORDINATOR_REFRESH_MS", 200, 500);
 assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_MS", 50, 150);
-assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_TIMEOUT_MS", 50, 200);
+assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_TIMEOUT_MS", 50, 300);
 assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS", 40, 150);
 assert.ok(
   /const\s+TOOL_HUD_STEADY_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(toolRegistrySource),

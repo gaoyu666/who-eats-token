@@ -266,6 +266,18 @@ function testWindowsDesktopAssistantForeground() {
     nativeWindow("Windows 服务主进程", "", { x: -32000, y: -32000, width: 16, height: 16 }, "", "C:\\Windows\\System32\\svchost.exe"),
     "win32"
   );
+  const zeroSizedHelper = _test.normalizeNativeWindow(
+    nativeWindow("小米电脑管家", "", { x: -5001, y: 0, width: 0, height: 0 }, "", "C:\\Program Files\\MI\\XiaomiPCManager\\XiaomiPcManager.exe"),
+    "win32"
+  );
+  const offscreenSmallHelper = _test.normalizeNativeWindow(
+    nativeWindow("Weixin", "微信", { x: -16000, y: -16000, width: 157, height: 25 }, "", "C:\\Program Files\\Tencent\\Weixin\\Weixin.exe"),
+    "win32"
+  );
+  const visibleSmallWindow = _test.normalizeNativeWindow(
+    nativeWindow("Weixin", "微信", { x: 80, y: 80, width: 320, height: 120 }, "", "C:\\Program Files\\Tencent\\Weixin\\Weixin.exe"),
+    "win32"
+  );
   const explorerHostPopup = _test.normalizeNativeWindow(
     nativeWindow("Windows 资源管理器", "主机弹出窗口", { x: 0, y: 0, width: 0, height: 0 }, "", "C:\\Windows\\explorer.exe"),
     "win32"
@@ -362,6 +374,36 @@ function testWindowsDesktopAssistantForeground() {
     _test.getForegroundFallbackReason(nativeNarratorHelper, { desktopArea }, "win32"),
     "windows-desktop-assistant",
     "Offscreen svchost Narrator helper samples should also trigger rich foreground inspection when get-windows omits className."
+  );
+  assert.equal(
+    _test.isWindowsDesktopAssistantForeground(zeroSizedHelper, "win32"),
+    true,
+    "Zero-sized untitled helper foregrounds should be treated as desktop assistant sampling noise."
+  );
+  assert.equal(
+    _test.getForegroundFallbackReason(zeroSizedHelper, { desktopArea }, "win32"),
+    "zero-sized-helper",
+    "Zero-sized untitled helper foregrounds should trigger blocker-aware desktop fallback instead of hiding the top bar directly."
+  );
+  assert.equal(
+    _test.shouldUseInspectedFastDesktopWindow(zeroSizedHelper, { desktopArea }, "win32"),
+    false,
+    "If fallback inspection still returns the zero-sized helper, fast desktop sampling must continue to the real desktop base."
+  );
+  assert.equal(
+    _test.isOffscreenSmallDesktopHelperForeground(offscreenSmallHelper, desktopArea, "win32"),
+    true,
+    "Offscreen small helper foregrounds should be treated as desktop sampling noise."
+  );
+  assert.equal(
+    _test.getForegroundFallbackReason(offscreenSmallHelper, { desktopArea }, "win32"),
+    "offscreen-small-helper",
+    "Offscreen small helper foregrounds should prefer desktop-base fallback instead of hiding the top bar directly."
+  );
+  assert.equal(
+    _test.isOffscreenSmallDesktopHelperForeground(visibleSmallWindow, desktopArea, "win32"),
+    false,
+    "Visible small windows inside the desktop area must not be treated as offscreen helper noise."
   );
   assert.equal(
     _test.isWindowsDesktopAssistantForeground(
