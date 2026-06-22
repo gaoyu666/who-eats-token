@@ -2,6 +2,7 @@ const MAX_SETTINGS_BYTES = 64 * 1024;
 const MAX_POPOVER_BYTES = 8 * 1024;
 
 const SETTINGS_SCHEMA = {
+  tools: ["tracked"],
   appearance: ["glassOpacity", "glassBlur", "fontScale"],
   windows: [
     "desktopBarEnabled",

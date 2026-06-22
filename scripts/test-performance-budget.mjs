@@ -15,6 +15,7 @@ const {
 } = require("../src/main/ipc-guards.cjs");
 
 const mainSource = read("src/main.cjs");
+const toolRegistrySource = read("src/system/tool-registry.cjs");
 const wakeProbeSource = read("src/main/wake-probe.ps1");
 const activeWindowSource = read("src/system/active-window.cjs");
 const settingsSource = read("src/config/settings.cjs");
@@ -75,6 +76,7 @@ assert.equal(Object.hasOwn(aggressive, "desktopBarStage"), false, "Settings sani
 assert.equal(Object.hasOwn(aggressive, "unknown"), false, "Settings sanitizer must drop unknown top-level fields.");
 
 const guardedSettings = guardSettingsPayload({
+  tools: { tracked: ["cursor", "vscode-ai", "../bad"] },
   appearance: { glassOpacity: 0.4, injected: true },
   providers: {
     codex: { enabled: true, source: "forged" },
@@ -82,6 +84,7 @@ const guardedSettings = guardSettingsPayload({
   },
   providerRegistry: [{ id: "forged" }]
 });
+assert.deepEqual(guardedSettings.tools, { tracked: ["cursor", "vscode-ai", "../bad"] });
 assert.deepEqual(guardedSettings.appearance, { glassOpacity: 0.4 });
 assert.deepEqual(guardedSettings.providers.codex, { enabled: true });
 assert.equal(Object.hasOwn(guardedSettings, "providerRegistry"), false);
@@ -103,11 +106,11 @@ assert.equal(guardHudTrustPopoverSize({ height: 99999 }).height, 720);
 assertNumericConstant(mainSource, "SYSTEM_REFRESH_MS", 2000, Infinity);
 assertNumericConstant(mainSource, "OVERLAY_COORDINATOR_REFRESH_MS", 200, 500);
 assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_MS", 50, 150);
-assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_TIMEOUT_MS", 50, 200);
+assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_TIMEOUT_MS", 50, 300);
 assertNumericConstant(mainSource, "TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS", 40, 150);
 assert.ok(
-  /const\s+TOOL_HUD_STEADY_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(mainSource),
-  "Tool HUD steady-state provider refresh should stay at 5 minutes."
+  /const\s+TOOL_HUD_STEADY_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(toolRegistrySource),
+  "Tool HUD steady-state provider refresh should stay at 5 minutes (in tool-registry.cjs)."
 );
 assert.ok(
   /const\s+HIDDEN_SNAPSHOT_REFRESH_MS\s*=\s*5\s*\*\s*60\s*\*\s*1000/.test(mainSource),

@@ -1,0 +1,21 @@
+﻿{
+  "hwnd": 1060404,
+  "pid": 13472,
+  "processName": "explorer",
+  "path": "C:\\Windows\\Explorer.EXE",
+  "title": "Program Manager",
+  "className": "Progman",
+  "bounds": {
+    "y": 0,
+    "width": 1600,
+    "height": 1000,
+    "x": 0
+  },
+  "contentOverlays": [],
+  "desktop": {
+    "clear": true,
+    "blockerCount": 0,
+    "blockers": []
+  },
+  "source": "fast-desktop"
+}

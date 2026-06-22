@@ -139,7 +139,18 @@ function classifyInterval(occurrence) {
     return {
       ...occurrence,
       classification: "reviewed-runtime",
-      reason: "Bounded desktop/runtime refresh timer covered by docs/performance-budget.md"
+      reason: "Bounded desktop/runtime timer covered by docs/performance-budget.md"
+    };
+  }
+
+  if (
+    normalized === "src/system/tool-registry.cjs"
+    && line.includes("scanTimer =")
+  ) {
+    return {
+      ...occurrence,
+      classification: "reviewed-runtime",
+      reason: "Tool process scan timer: .unref(), guarded by empty registry, covered by docs/performance-budget.md"
     };
   }
 

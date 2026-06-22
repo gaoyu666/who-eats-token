@@ -1,0 +1,405 @@
+﻿{
+    "test":  "S1-checkbox",
+    "stamp":  "20260613-220240",
+    "pass":  true,
+    "passOn":  true,
+    "passOff":  true,
+    "screenshots":  {
+                        "on":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S1-checkbox.png",
+                        "off":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S1-checkbox-off-20260613-220240.png"
+                    },
+    "setupOff":  {
+                     "ok":  true,
+                     "action":  "off",
+                     "before":  {
+                                    "checked":  false,
+                                    "disabled":  false,
+                                    "text":  "VS Code AI"
+                                },
+                     "formTrackedBeforeSave":  [
+                                                   "codex",
+                                                   "cursor",
+                                                   "claude",
+                                                   "chatgpt",
+                                                   "hermes-web-ui",
+                                                   "gemini",
+                                                   "deepseek",
+                                                   "qwen",
+                                                   "doubao"
+                                               ],
+                     "after":  {
+                                   "checked":  false,
+                                   "disabled":  false
+                               },
+                     "tracked":  [
+                                     "codex",
+                                     "cursor",
+                                     "claude",
+                                     "chatgpt",
+                                     "hermes-web-ui",
+                                     "gemini",
+                                     "deepseek",
+                                     "qwen",
+                                     "doubao"
+                                 ],
+                     "registry":  [
+                                      {
+                                          "id":  "codex",
+                                          "name":  "Codex",
+                                          "providerIds":  [
+                                                              "codex"
+                                                          ],
+                                          "status":  "online-foreground",
+                                          "lastSeenAt":  1781359310056
+                                      },
+                                      {
+                                          "id":  "cursor",
+                                          "name":  "Cursor",
+                                          "providerIds":  [
+                                                              "cursor",
+                                                              "openai",
+                                                              "anthropic"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "chatgpt",
+                                          "name":  "ChatGPT",
+                                          "providerIds":  [
+                                                              "openai",
+                                                              "chatgpt"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "hermes-web-ui",
+                                          "name":  "Hermes",
+                                          "providerIds":  [
+                                                              "hermes"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "gemini",
+                                          "name":  "Gemini",
+                                          "providerIds":  [
+                                                              "gemini",
+                                                              "google"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "deepseek",
+                                          "name":  "DeepSeek",
+                                          "providerIds":  [
+                                                              "deepseek"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "qwen",
+                                          "name":  "Qwen",
+                                          "providerIds":  [
+                                                              "qwen",
+                                                              "dashscope",
+                                                              "aliyun"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "doubao",
+                                          "name":  "豆包",
+                                          "providerIds":  [
+                                                              "doubao",
+                                                              "volcengine"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359252314
+                                      },
+                                      {
+                                          "id":  "claude",
+                                          "name":  "Claude",
+                                          "providerIds":  [
+                                                              "anthropic",
+                                                              "claude"
+                                                          ],
+                                          "status":  "online-background",
+                                          "lastSeenAt":  1781359292945
+                                      }
+                                  ],
+                     "statusText":  "已保存"
+                 },
+    "on":  {
+               "ok":  true,
+               "action":  "on",
+               "before":  {
+                              "checked":  false,
+                              "disabled":  false,
+                              "text":  "VS Code AI"
+                          },
+               "formTrackedBeforeSave":  [
+                                             "codex",
+                                             "cursor",
+                                             "claude",
+                                             "chatgpt",
+                                             "hermes-web-ui",
+                                             "gemini",
+                                             "deepseek",
+                                             "qwen",
+                                             "doubao",
+                                             "vscode-ai"
+                                         ],
+               "after":  {
+                             "checked":  true,
+                             "disabled":  false
+                         },
+               "tracked":  [
+                               "codex",
+                               "cursor",
+                               "claude",
+                               "chatgpt",
+                               "hermes-web-ui",
+                               "gemini",
+                               "deepseek",
+                               "qwen",
+                               "doubao",
+                               "vscode-ai"
+                           ],
+               "registry":  [
+                                {
+                                    "id":  "codex",
+                                    "name":  "Codex",
+                                    "providerIds":  [
+                                                        "codex"
+                                                    ],
+                                    "status":  "online-foreground",
+                                    "lastSeenAt":  1781359310056
+                                },
+                                {
+                                    "id":  "cursor",
+                                    "name":  "Cursor",
+                                    "providerIds":  [
+                                                        "cursor",
+                                                        "openai",
+                                                        "anthropic"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "chatgpt",
+                                    "name":  "ChatGPT",
+                                    "providerIds":  [
+                                                        "openai",
+                                                        "chatgpt"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "hermes-web-ui",
+                                    "name":  "Hermes",
+                                    "providerIds":  [
+                                                        "hermes"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "gemini",
+                                    "name":  "Gemini",
+                                    "providerIds":  [
+                                                        "gemini",
+                                                        "google"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "deepseek",
+                                    "name":  "DeepSeek",
+                                    "providerIds":  [
+                                                        "deepseek"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "qwen",
+                                    "name":  "Qwen",
+                                    "providerIds":  [
+                                                        "qwen",
+                                                        "dashscope",
+                                                        "aliyun"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "doubao",
+                                    "name":  "豆包",
+                                    "providerIds":  [
+                                                        "doubao",
+                                                        "volcengine"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359252314
+                                },
+                                {
+                                    "id":  "claude",
+                                    "name":  "Claude",
+                                    "providerIds":  [
+                                                        "anthropic",
+                                                        "claude"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359292945
+                                },
+                                {
+                                    "id":  "vscode-ai",
+                                    "name":  "VS Code AI",
+                                    "providerIds":  [
+                                                        "openai",
+                                                        "anthropic",
+                                                        "gemini"
+                                                    ],
+                                    "status":  "online-background",
+                                    "lastSeenAt":  1781359363185
+                                }
+                            ],
+               "statusText":  "已保存"
+           },
+    "off":  {
+                "ok":  true,
+                "action":  "off",
+                "before":  {
+                               "checked":  true,
+                               "disabled":  false,
+                               "text":  "✓\nVS Code AI"
+                           },
+                "formTrackedBeforeSave":  [
+                                              "codex",
+                                              "cursor",
+                                              "claude",
+                                              "chatgpt",
+                                              "hermes-web-ui",
+                                              "gemini",
+                                              "deepseek",
+                                              "qwen",
+                                              "doubao"
+                                          ],
+                "after":  {
+                              "checked":  false,
+                              "disabled":  false
+                          },
+                "tracked":  [
+                                "codex",
+                                "cursor",
+                                "claude",
+                                "chatgpt",
+                                "hermes-web-ui",
+                                "gemini",
+                                "deepseek",
+                                "qwen",
+                                "doubao"
+                            ],
+                "registry":  [
+                                 {
+                                     "id":  "codex",
+                                     "name":  "Codex",
+                                     "providerIds":  [
+                                                         "codex"
+                                                     ],
+                                     "status":  "online-foreground",
+                                     "lastSeenAt":  1781359310056
+                                 },
+                                 {
+                                     "id":  "cursor",
+                                     "name":  "Cursor",
+                                     "providerIds":  [
+                                                         "cursor",
+                                                         "openai",
+                                                         "anthropic"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "chatgpt",
+                                     "name":  "ChatGPT",
+                                     "providerIds":  [
+                                                         "openai",
+                                                         "chatgpt"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "hermes-web-ui",
+                                     "name":  "Hermes",
+                                     "providerIds":  [
+                                                         "hermes"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "gemini",
+                                     "name":  "Gemini",
+                                     "providerIds":  [
+                                                         "gemini",
+                                                         "google"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "deepseek",
+                                     "name":  "DeepSeek",
+                                     "providerIds":  [
+                                                         "deepseek"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "qwen",
+                                     "name":  "Qwen",
+                                     "providerIds":  [
+                                                         "qwen",
+                                                         "dashscope",
+                                                         "aliyun"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "doubao",
+                                     "name":  "豆包",
+                                     "providerIds":  [
+                                                         "doubao",
+                                                         "volcengine"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359252314
+                                 },
+                                 {
+                                     "id":  "claude",
+                                     "name":  "Claude",
+                                     "providerIds":  [
+                                                         "anthropic",
+                                                         "claude"
+                                                     ],
+                                     "status":  "online-background",
+                                     "lastSeenAt":  1781359292945
+                                 }
+                             ],
+                "statusText":  "已保存"
+            }
+}

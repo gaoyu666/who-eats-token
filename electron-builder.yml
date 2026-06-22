@@ -37,7 +37,7 @@ nsis:
   artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
 mac:
-  icon: src/assets/app-icon.png
+  icon: src/assets/app-icon-mascot-a.png
   identity: null
   hardenedRuntime: true
   gatekeeperAssess: false

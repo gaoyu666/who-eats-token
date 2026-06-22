@@ -1,0 +1,36 @@
+{
+  "test": "S1-checkbox-visual-shot",
+  "pass": true,
+  "result": {
+    "checked": true,
+    "tracked": [
+      "cursor",
+      "vscode-ai"
+    ],
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-foreground",
+        "lastSeenAt": 1781360054502
+      },
+      {
+        "id": "vscode-ai",
+        "name": "VS Code AI",
+        "providerIds": [
+          "openai",
+          "anthropic",
+          "gemini"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1781360070612
+      }
+    ],
+    "label": "✓VS Code AI"
+  }
+}

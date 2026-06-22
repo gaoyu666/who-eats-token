@@ -11,7 +11,7 @@ const releaseWorkflow = read(".github/workflows/release-artifacts.yml");
 const gitignore = read(".gitignore");
 const packagedSmoke = read("scripts/lib/packaged-smoke.mjs");
 const appIconIco = fs.statSync(path.join(root, "src", "assets", "app-icon.ico"));
-const appIconPng = fs.statSync(path.join(root, "src", "assets", "app-icon.png"));
+const appIconPng = fs.statSync(path.join(root, "src", "assets", "app-icon-mascot-a.png"));
 
 assert.ok(packageJson.devDependencies?.["electron-builder"], "electron-builder must be a devDependency.");
 assert.equal(packageJson.private, false, "package.json must stay publishable/private=false.");
@@ -34,7 +34,7 @@ assertContains(builderConfig, "target: nsis");
 assertContains(builderConfig, "target: dmg");
 assertContains(builderConfig, "identity: null");
 assertContains(builderConfig, "src/assets/app-icon.ico");
-assertContains(builderConfig, "src/assets/app-icon.png");
+assertContains(builderConfig, "src/assets/app-icon-mascot-a.png");
 assertContains(builderConfig, "src/**/*");
 assertContains(builderConfig, "output: release");
 assertContains(packageJson.scripts["package:dir"], "signAndEditExecutable=false");

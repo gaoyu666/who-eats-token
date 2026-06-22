@@ -1,0 +1,21 @@
+﻿{
+    "stamp":  "20260611-100004",
+    "head":  "ef61d15",
+    "appProcessId":  31336,
+    "setProgmanForeground":  true,
+    "progmanHwnd":  66088,
+    "log":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\overlay-diag-S5-desktop-rerun-20260611-100004.out.log",
+    "errorLog":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\overlay-diag-S5-desktop-rerun-20260611-100004.err.log",
+    "video":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S5-desktop-rerun-20260611-100004.mp4",
+    "screenshot5s":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S5-desktop-rerun-20260611-100004-5s.png",
+    "screenshot12s":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S5-desktop-rerun-20260611-100004-12s.png",
+    "activeWindow5s":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S5-desktop-rerun-20260611-100004-active-window-5s.json",
+    "activeWindow12s":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S5-desktop-rerun-20260611-100004-active-window-12s.json",
+    "health5s":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S5-desktop-rerun-20260611-100004-health-5s.json",
+    "resolvedDesktopTopbar":  229,
+    "foregroundSamplingNoise":  0,
+    "hiddenUnsupported":  0,
+    "activeWindowTimeout":  2,
+    "toolHud":  8,
+    "logonUiRunning":  false
+}

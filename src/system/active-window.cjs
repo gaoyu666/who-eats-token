@@ -147,6 +147,24 @@ function Test-WindowsDesktopAssistantForeground($windowInfo) {
   return $false
 }
 
+function Test-ZeroSizedUntitledDesktopHelperForeground($windowInfo) {
+  $title = ([string]$windowInfo.title).Trim()
+  if (-not [string]::IsNullOrWhiteSpace($title)) { return $false }
+  $bounds = $windowInfo.bounds
+  if (-not $bounds) { return $false }
+  return [double]$bounds.width -le 0 -or [double]$bounds.height -le 0
+}
+
+function Test-OffscreenSmallDesktopHelperForeground($windowInfo) {
+  $bounds = $windowInfo.bounds
+  if (-not $bounds) { return $false }
+  $width = [double]$bounds.width
+  $height = [double]$bounds.height
+  if ($width -le 0 -or $height -le 0) { return $false }
+  if ($width -gt 360 -or $height -gt 180) { return $false }
+  return [double]$bounds.x -le -10000 -or [double]$bounds.y -le -10000
+}
+
 function Test-ShellOrOverlayWindow($windowInfo) {
   $processName = [string]$windowInfo.processName
   $className = [string]$windowInfo.className
@@ -210,6 +228,8 @@ function Test-ExplorerShellFloatingWindow($windowInfo) {
 function Test-DesktopTopBarShellForeground($windowInfo) {
   if (Test-DesktopShellBaseWindow $windowInfo) { return $true }
   if (Test-WindowsDesktopAssistantForeground $windowInfo) { return $true }
+  if (Test-ZeroSizedUntitledDesktopHelperForeground $windowInfo) { return $true }
+  if (Test-OffscreenSmallDesktopHelperForeground $windowInfo) { return $true }
 
   $processName = ([string]$windowInfo.processName).ToLowerInvariant()
   $className = [string]$windowInfo.className
@@ -481,6 +501,8 @@ function Test-NeedsBlockingWindowScan($windowInfo) {
   $processName = ([string]$windowInfo.processName).ToLowerInvariant()
   if ($processName -eq "explorer") { return $true }
   if (Test-WindowsDesktopAssistantForeground $windowInfo) { return $true }
+  if (Test-ZeroSizedUntitledDesktopHelperForeground $windowInfo) { return $true }
+  if (Test-OffscreenSmallDesktopHelperForeground $windowInfo) { return $true }
 
   $bounds = $windowInfo.bounds
   if (-not $bounds) { return $false }
@@ -498,7 +520,12 @@ $script:preferDesktopForIgnoredForeground = [bool]$config.preferDesktopForIgnore
 $script:blockingWindows = New-Object System.Collections.Generic.List[object]
 $hwnd = [ForegroundReader]::GetForegroundWindow()
 $payload = Get-WindowPayload $hwnd
-if ($script:ignoredHwnds.ContainsKey([string]$payload.hwnd) -or (Test-ExternalDesktopOverlayWindow $payload)) {
+$shouldUseForegroundFallback =
+  $script:ignoredHwnds.ContainsKey([string]$payload.hwnd) -or
+  (Test-ExternalDesktopOverlayWindow $payload) -or
+  (Test-ZeroSizedUntitledDesktopHelperForeground $payload) -or
+  (Test-OffscreenSmallDesktopHelperForeground $payload)
+if ($shouldUseForegroundFallback) {
   $desktopBasePayload = Get-PreferredDesktopBaseForIgnoredForeground
   if ($desktopBasePayload) {
     $payload = $desktopBasePayload
@@ -827,8 +854,14 @@ async function getWindowsActiveWindow(options = {}) {
       return withFastDesktopMetadata(nativeWindow, process.platform);
     }
     if (shouldUseForegroundFallback) {
+      const preferredDesktopWindow = shouldPreferDesktopBaseForForegroundFallback(foregroundFallbackReason)
+        ? await getNativeDesktopWindow(options, nativeWindow)
+        : null;
+      if (preferredDesktopWindow && !preferredDesktopWindow.samplingNoise) {
+        return preferredDesktopWindow;
+      }
       if (shouldUseNativeDesktopFallbackOnly(foregroundFallbackReason, options)) {
-        return await getNativeDesktopWindow(options, nativeWindow) ||
+        return preferredDesktopWindow ||
           markForegroundFallbackMiss(nativeWindow, foregroundFallbackReason);
       }
       const inspectedWindow = await getPowerShellActiveWindow({
@@ -876,7 +909,9 @@ function getForegroundFallbackReason(activeWindow, options = {}, platform = proc
   if (!activeWindow) return false;
   if (isIgnoredWindow(activeWindow, getIgnoredHwnds(options))) return "ignored-window";
   if (isNativeShellForegroundCandidate(activeWindow, platform)) return "native-shell";
+  if (isZeroSizedUntitledDesktopHelperForeground(activeWindow, platform)) return "zero-sized-helper";
   if (isWindowsDesktopAssistantForeground(activeWindow, platform)) return "windows-desktop-assistant";
+  if (isOffscreenSmallDesktopHelperForeground(activeWindow, options.desktopArea, platform)) return "offscreen-small-helper";
   if (isCodexDesktopOverlayCandidate(activeWindow, normalizeBounds(options.desktopArea), platform)) {
     return "external-overlay";
   }
@@ -884,7 +919,10 @@ function getForegroundFallbackReason(activeWindow, options = {}, platform = proc
 }
 
 function shouldPreferDesktopBaseForForegroundFallback(reason) {
-  return reason === "ignored-window" || reason === "external-overlay";
+  return reason === "ignored-window" ||
+    reason === "external-overlay" ||
+    reason === "zero-sized-helper" ||
+    reason === "offscreen-small-helper";
 }
 
 function shouldUseNativeDesktopFallbackOnly(reason, options = {}) {
@@ -947,7 +985,8 @@ function isWindowsDesktopAssistantForeground(windowInfo, platform = process.plat
   if (platform !== "win32") return false;
   return isClickToDoDesktopAssistantForeground(windowInfo) ||
     isExplorerHostPopupDesktopAssistantForeground(windowInfo) ||
-    isNarratorHelperDesktopAssistantForeground(windowInfo);
+    isNarratorHelperDesktopAssistantForeground(windowInfo) ||
+    isZeroSizedUntitledDesktopHelperForeground(windowInfo);
 }
 
 function isExplorerHostPopupDesktopAssistantForeground(windowInfo) {
@@ -992,6 +1031,25 @@ function isOffscreenTinyHelperBounds(bounds) {
   if (!bounds || bounds.width <= 0 || bounds.height <= 0) return false;
   if (bounds.width > 64 || bounds.height > 64) return false;
   return bounds.x <= -30000 || bounds.y <= -30000;
+}
+
+function isZeroSizedUntitledDesktopHelperForeground(windowInfo) {
+  const title = String(windowInfo?.title || "").trim();
+  if (title) return false;
+  const bounds = normalizeBounds(windowInfo?.bounds);
+  return Boolean(bounds && (bounds.width <= 0 || bounds.height <= 0));
+}
+
+function isOffscreenSmallDesktopHelperForeground(windowInfo, desktopArea = null, platform = process.platform) {
+  if (platform !== "win32") return false;
+  const bounds = normalizeBounds(windowInfo?.bounds);
+  if (!bounds || bounds.width <= 0 || bounds.height <= 0) return false;
+  if (bounds.width > 360 || bounds.height > 180) return false;
+  const desktopBounds = desktopArea ? normalizeBounds(desktopArea) : null;
+  if (desktopBounds && desktopBounds.width > 0 && desktopBounds.height > 0 && boundsOverlap(bounds, desktopBounds)) {
+    return false;
+  }
+  return bounds.x <= -10000 || bounds.y <= -10000;
 }
 
 async function getMacActiveWindow(options = {}) {
@@ -1158,6 +1216,8 @@ function isDesktopBaseCandidate(windowInfo, options = {}) {
   if (!hasUsableWindowBounds(windowInfo)) return false;
   if (isIgnoredWindow(windowInfo, ignoredHwnds)) return false;
   if (isZeroSizedExplorerShellWindow(windowInfo, platform)) return false;
+  if (isZeroSizedUntitledDesktopHelperForeground(windowInfo, platform)) return false;
+  if (isOffscreenSmallDesktopHelperForeground(windowInfo, desktopArea, platform)) return false;
   if (isExternalDesktopOverlayWindow(windowInfo, desktopArea, platform)) return false;
   if (options.allowDesktopShellBase === false && isDesktopShellBaseWindow(windowInfo, platform)) return false;
   return !isDesktopBaseSelectionNoise(windowInfo, platform);
@@ -1604,7 +1664,9 @@ module.exports = {
     isFullScreenLikeWindow,
     isMacDesktopForeground,
     isNativeShellForegroundCandidate,
+    isOffscreenSmallDesktopHelperForeground,
     isWindowsDesktopAssistantForeground,
+    isZeroSizedUntitledDesktopHelperForeground,
     isZeroSizedExplorerShellWindow,
     isShellOrOwnOverlayWindow,
     isWindowsDesktopForeground,

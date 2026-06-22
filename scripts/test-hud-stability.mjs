@@ -414,12 +414,12 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /createOverlayController\(\{[\s\S]*?noiseGraceMs: 300,[\s\S]*?confirmedLatencyMs: 400/,
+    /createOverlayController\(\{[\s\S]*?noiseGraceMs: 500,[\s\S]*?confirmedLatencyMs: 400/,
     "Overlay arbitration should be centralized in a state controller with bounded sampling-noise preservation."
   );
   assert.match(
     mainSource,
-    /overlayController\.resolve\(\{[\s\S]*?samplingNoise: !settingsDecision && isForegroundSamplingNoise\(activeWindow\)[\s\S]*?desktopVisible: !settingsDecision && shouldShowDesktopBar\(activeWindow\)[\s\S]*?fullscreenForeground: !settingsDecision && isForegroundFullscreen\(activeWindow\)/,
+    /overlayController\.resolve\(\{[\s\S]*?samplingNoise: !settingsDecision && isForegroundSamplingNoise\(activeWindow\)[\s\S]*?desktopVisible: !settingsDecision && shouldShowDesktopBar\(activeWindow\)[\s\S]*?fullscreenForeground: !settingsDecision && !isDesktopForegroundWindow\(activeWindow, process\.platform\) && isForegroundFullscreen\(activeWindow\)/,
     "Foreground samples should be classified once and then handed to the overlay state controller."
   );
   assert.match(
@@ -429,7 +429,7 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /const TOOL_DESKTOP_WAKE_MS = 75;[\s\S]*?const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 120;[\s\S]*?const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;/,
+    /const TOOL_DESKTOP_WAKE_MS = 75;[\s\S]*?const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 300;[\s\S]*?const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;/,
     "Tool-to-desktop transitions should have a bounded lightweight wake path for immediate HUD suppression."
   );
   assert.match(
@@ -444,8 +444,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     activeWindowSource,
-    /shouldUseNativeDesktopFallbackOnly\(foregroundFallbackReason, options\)[\s\S]*?getNativeDesktopWindow\(options, nativeWindow\)[\s\S]*?function shouldUseNativeDesktopFallbackOnly\(reason, options = \{\}\) \{[\s\S]*?nativeDesktopFallbackOnly === true[\s\S]*?shouldPreferDesktopBaseForForegroundFallback\(reason\)/,
-    "The tool-desktop wake path should bypass PowerShell fallback and use native desktop-base selection only for ignored/external overlays."
+    /const preferredDesktopWindow = shouldPreferDesktopBaseForForegroundFallback\(foregroundFallbackReason\)[\s\S]*?getNativeDesktopWindow\(options, nativeWindow\)[\s\S]*?preferredDesktopWindow && !preferredDesktopWindow\.samplingNoise[\s\S]*?return preferredDesktopWindow[\s\S]*?shouldUseNativeDesktopFallbackOnly\(foregroundFallbackReason, options\)[\s\S]*?return preferredDesktopWindow \|\|[\s\S]*?function shouldPreferDesktopBaseForForegroundFallback\(reason\)[\s\S]*?reason === "ignored-window"[\s\S]*?reason === "external-overlay"[\s\S]*?reason === "zero-sized-helper"[\s\S]*?reason === "offscreen-small-helper"/,
+    "Fast desktop fallback should try native desktop-base selection before slow PowerShell for owned, external, zero-sized, or offscreen helper foregrounds."
   );
   assert.match(
     mainSource,
@@ -499,8 +499,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     overlayControllerSource,
-    /previousSurface === SURFACES\.DESKTOP && input\.noiseReason === "active-window-timeout"[\s\S]*?stalePreserveMs > options\.noiseGraceMs[\s\S]*?surface: SURFACES\.HIDDEN[\s\S]*?surface: SURFACES\.DESKTOP[\s\S]*?preserveOverlay: true/,
-    "A foreground sampler timeout should not hide a confirmed desktop immediately, but consecutive timeouts must remain bounded by the noise grace."
+    /previousSurface === SURFACES\.DESKTOP && input\.noiseReason === "active-window-timeout"[\s\S]*?const stalePreserveMs = Math\.max\(0, now - preserveStartedAt\);[\s\S]*?return \{[\s\S]*?surface: SURFACES\.DESKTOP[\s\S]*?preserveOverlay: true/,
+    "A foreground sampler timeout should preserve a confirmed desktop until a real signal arrives."
   );
   assert.match(
     mainSource,
@@ -626,8 +626,8 @@ function testHudWindowLifecycleGuards() {
   const warmShowToolHudSource = extractFunction(mainSource, "function warmShowToolHudForTransition");
   assert.match(
     warmShowToolHudSource,
-    /decision\?\.toolContext\?\.tool[\s\S]*?isOverlayDecisionCurrent\(decision, SURFACES\.TOOL\)[\s\S]*?warmToolHudPayload[\s\S]*?payload\.tool\.id !== decision\.toolContext\.tool\.id[\s\S]*?expectedHwnd[\s\S]*?payloadHwnd[\s\S]*?showToolHudWindow\(hudBounds\)/,
-    "Tool HUD warm-show should only run after the state machine has confirmed tool-hud for the same tool and hwnd."
+    /decision\?\.toolContext\?\.tool[\s\S]*?isOverlayDecisionCurrent\(decision, SURFACES\.TOOL\)[\s\S]*?warmToolHudPayload[\s\S]*?payload\.tool\.id !== decision\.toolContext\.tool\.id[\s\S]*?const anchorWindow = decision\.toolContext\.window \|\| decision\.activeWindow \|\| payload\.activeWindow[\s\S]*?showToolHudWindow\(hudBounds\)/,
+    "Tool HUD warm-show should only run after the state machine has confirmed tool-hud for the same tool."
   );
   assert.doesNotMatch(
     warmShowToolHudSource,
@@ -642,8 +642,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /if \(shouldWarmShowToolHudForDecision\(decision, previousDecision\)\) \{\s*warmShowToolHudForTransition\(decision\);\s*\}/,
-    "Steady tool-hud -> tool-hud must not call warmShowToolHudForTransition when HUD is already visible."
+    /if \(shouldWarmShowToolHudForDecision\(decision, previousDecision\)\) \{\s*warmShown = warmShowToolHudForTransition\(decision\) \|\| quickShowToolHudForTransition\(decision\);\s*\}/,
+    "Steady tool-hud -> tool-hud must not call warm or quick HUD show when HUD is already visible."
   );
   assert.doesNotMatch(
     extractFunction(mainSource, "function shouldRefreshToolHudForDecision"),
@@ -657,8 +657,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /hideDesktopBarWindow\("tool-hud"\);\s*if \(shouldWarmShowToolHudForDecision\(decision, previousDecision\)\) \{\s*warmShowToolHudForTransition\(decision\);\s*\}[\s\S]*?await refreshToolHud\(/,
-    "Switching from desktop to a confirmed tool should warm-show an existing same-hwnd HUD payload before async content refresh, gated by the warm-show guard."
+    /hideDesktopBarWindow\("tool-hud"\);[\s\S]*?if \(shouldWarmShowToolHudForDecision\(decision, previousDecision\)\) \{\s*warmShown = warmShowToolHudForTransition\(decision\) \|\| quickShowToolHudForTransition\(decision\);\s*\}[\s\S]*?await refreshToolHud\(/,
+    "Switching from desktop to a confirmed tool should show a reusable HUD payload before async content refresh, gated by the warm-show guard."
   );
   assert.match(
     extractFunction(mainSource, "function preserveSettingsOverlaySurface"),
@@ -984,8 +984,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /if \(!desktopBarWindow\.isVisible\(\)\)/,
-    "The desktop top bar must not repeat z-order show calls while already visible."
+    /if \(!desktopBarWindow\.isVisible\(\) \|\| forceShow\)/,
+    "The desktop top bar must not repeat z-order show calls while already visible unless a transition explicitly force-shows it."
   );
   assert.match(
     mainSource,

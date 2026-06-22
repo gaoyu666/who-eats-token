@@ -1,0 +1,25 @@
+﻿{
+  "hwnd": "2426572",
+  "pid": 31232,
+  "processName": "Weixin",
+  "bundleId": "",
+  "path": "C:\\Program Files\\Tencent\\Weixin\\Weixin.exe",
+  "title": "微信",
+  "url": "",
+  "platform": "windows",
+  "memoryUsageBytes": 365809664,
+  "className": "",
+  "bounds": {
+    "x": -16000,
+    "y": -16000,
+    "width": 157,
+    "height": 25
+  },
+  "contentOverlays": [],
+  "desktop": {
+    "clear": false,
+    "blockerCount": 0,
+    "blockers": []
+  },
+  "source": "get-windows-fast-desktop"
+}

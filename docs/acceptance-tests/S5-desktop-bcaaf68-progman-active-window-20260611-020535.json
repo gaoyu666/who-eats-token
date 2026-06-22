@@ -1,0 +1,25 @@
+﻿{
+  "hwnd": "25112392",
+  "pid": 6592,
+  "processName": "小米电脑管家",
+  "bundleId": "",
+  "path": "C:\\Program Files\\MI\\XiaomiPCManager\\5.8.0.74\\XiaomiPcManager.exe",
+  "title": "",
+  "url": "",
+  "platform": "windows",
+  "memoryUsageBytes": 154218496,
+  "className": "",
+  "bounds": {
+    "x": -5001,
+    "y": 0,
+    "width": 0,
+    "height": 0
+  },
+  "contentOverlays": [],
+  "desktop": {
+    "clear": false,
+    "blockerCount": 0,
+    "blockers": []
+  },
+  "source": "get-windows"
+}

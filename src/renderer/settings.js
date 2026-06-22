@@ -62,6 +62,7 @@ function applyFormValues(settings) {
 }
 
 function renderProviders(settings) {
+  renderTrackedTools();
   const registry = settings.providerRegistry || [];
   els.providers.replaceChildren(
     ...registry.map((provider) => {
@@ -138,6 +139,17 @@ function buildSettingsFromForm() {
     const provider = settings.providers[input.dataset.provider];
     if (provider) provider.enabled = input.checked;
   }
+
+  // Build tools.tracked from checkboxes
+  const trackedInputs = document.querySelectorAll("#trackedTools input[type=checkbox][value]");
+  const tracked = [];
+  for (const input of trackedInputs) {
+    if (input.checked) tracked.push(input.value);
+  }
+  if (tracked.length > 0) {
+    setPath(settings, "tools.tracked", tracked);
+  }
+
   delete settings.behavior.refreshSeconds;
   delete settings.behavior.activeWindowSeconds;
   return settings;
@@ -276,4 +288,47 @@ function setPath(object, path, value) {
     cursor = cursor[part];
   }
   cursor[final] = value;
+}
+
+async function renderTrackedTools() {
+  const container = document.getElementById("trackedTools");
+  if (!container) return;
+  try {
+    const tools = await window.tokenBar.scanAvailableTools();
+    const tracked = new Set(state.settings?.tools?.tracked || []);
+    container.innerHTML = "";
+    for (const tool of tools) {
+      const label = document.createElement("label");
+      label.className = "tool-checkbox" + (tool.available ? "" : " tool-unavailable");
+
+      const input = document.createElement("input");
+      input.type = "checkbox";
+      input.value = tool.id;
+      input.checked = tracked.has(tool.id);
+      input.disabled = !tool.available;
+      input.addEventListener("change", markDirty);
+
+      const checkmark = document.createElement("span");
+      checkmark.className = "check-icon";
+      checkmark.textContent = input.checked ? "✓" : "";
+      input.addEventListener("change", () => { checkmark.textContent = input.checked ? "✓" : ""; });
+
+      const name = document.createElement("span");
+      name.className = "tool-label-text";
+      name.textContent = tool.name;
+      if (!tool.available) {
+        const unavailable = document.createElement("span");
+        unavailable.className = "tool-unavailable-label";
+        unavailable.textContent = " (未安装)";
+        name.appendChild(unavailable);
+      }
+
+      label.appendChild(input);
+      label.appendChild(checkmark);
+      label.appendChild(name);
+      container.appendChild(label);
+    }
+  } catch {
+    container.textContent = "扫描失败";
+  }
 }

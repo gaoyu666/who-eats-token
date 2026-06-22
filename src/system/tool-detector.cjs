@@ -105,7 +105,8 @@ const TOOL_RULES = [
     name: "VS Code AI",
     providerIds: ["openai", "anthropic", "gemini"],
     match: ({ processName, title }) =>
-      (processName === "code" || processName === "visual studio code") &&
+      processName === "code" ||
+      processName === "visual studio code" ||
       /(cline|continue|copilot|roo code|aider)/i.test(title)
   }
 ];
@@ -294,5 +295,6 @@ module.exports = {
   detectTool,
   getHudCoveringDialog,
   isDialogWindow,
-  shouldSuppressHud
+  shouldSuppressHud,
+  TOOL_RULES
 };
