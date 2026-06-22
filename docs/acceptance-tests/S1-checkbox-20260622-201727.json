@@ -1,0 +1,209 @@
+{
+  "test": "S1-checkbox",
+  "stamp": "20260622-201727",
+  "pass": true,
+  "passOn": true,
+  "passOff": true,
+  "screenshots": {
+    "on": "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S1-checkbox.png",
+    "off": "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S1-checkbox-off-20260622-201727.png"
+  },
+  "setup": {
+    "tracked": [
+      "cursor"
+    ],
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130566186
+      }
+    ]
+  },
+  "offSetup": {
+    "ok": true,
+    "before": {
+      "checked": false,
+      "disabled": false,
+      "text": "VS Code AI"
+    },
+    "after": {
+      "checked": false,
+      "disabled": false,
+      "label": "VS Code AI"
+    },
+    "formTrackedBeforeSave": [
+      "cursor"
+    ],
+    "tracked": [
+      "cursor"
+    ],
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130566186
+      }
+    ],
+    "statusText": "已保存"
+  },
+  "on": {
+    "ok": true,
+    "before": {
+      "checked": false,
+      "disabled": false,
+      "text": "VS Code AI"
+    },
+    "after": {
+      "checked": true,
+      "disabled": false,
+      "label": "✓\nVS Code AI"
+    },
+    "formTrackedBeforeSave": [
+      "cursor",
+      "vscode-ai"
+    ],
+    "tracked": [
+      "cursor",
+      "vscode-ai"
+    ],
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130566186
+      },
+      {
+        "id": "vscode-ai",
+        "name": "VS Code AI",
+        "providerIds": [
+          "openai",
+          "anthropic",
+          "gemini"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130650848
+      }
+    ],
+    "statusText": "已保存"
+  },
+  "onIndex": {
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130566186
+      },
+      {
+        "id": "vscode-ai",
+        "name": "VS Code AI",
+        "providerIds": [
+          "openai",
+          "anthropic",
+          "gemini"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130650848
+      }
+    ],
+    "strip": [
+      {
+        "text": "Cursor",
+        "className": "tool-chip status-online-background",
+        "title": "Cursor · 后台"
+      },
+      {
+        "text": "VS Code AI",
+        "className": "tool-chip status-online-background",
+        "title": "VS Code AI · 后台"
+      }
+    ]
+  },
+  "onShot": {
+    "ok": true,
+    "path": "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S1-checkbox.png"
+  },
+  "off": {
+    "ok": true,
+    "before": {
+      "checked": true,
+      "disabled": false,
+      "text": "✓\nVS Code AI"
+    },
+    "after": {
+      "checked": false,
+      "disabled": false,
+      "label": "VS Code AI"
+    },
+    "formTrackedBeforeSave": [
+      "cursor"
+    ],
+    "tracked": [
+      "cursor"
+    ],
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130566186
+      }
+    ],
+    "statusText": "已保存"
+  },
+  "offIndex": {
+    "registry": [
+      {
+        "id": "cursor",
+        "name": "Cursor",
+        "providerIds": [
+          "cursor",
+          "openai",
+          "anthropic"
+        ],
+        "status": "online-background",
+        "lastSeenAt": 1782130566186
+      }
+    ],
+    "strip": [
+      {
+        "text": "Cursor",
+        "className": "tool-chip status-online-background",
+        "title": "Cursor · 后台"
+      }
+    ]
+  },
+  "offShot": {
+    "ok": true,
+    "path": "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S1-checkbox-off-20260622-201727.png"
+  }
+}
