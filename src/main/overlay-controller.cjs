@@ -155,16 +155,6 @@ function resolveSamplingNoiseSurface(input, previous, now, options) {
       ? previous.stalePreserveStartedAt ?? now
       : now;
     const stalePreserveMs = Math.max(0, now - preserveStartedAt);
-    if (stalePreserveMs > options.noiseGraceMs) {
-      return {
-        surface: SURFACES.HIDDEN,
-        reason: "active-window-timeout",
-        confirmed: false,
-        noise: true,
-        stalePreserveStartedAt: preserveStartedAt,
-        stalePreserveMs
-      };
-    }
     return {
       surface: SURFACES.DESKTOP,
       reason: "active-window-timeout",

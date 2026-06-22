@@ -131,12 +131,13 @@ const HUD_TRUST_POPOVER_MIN_HEIGHT = 336;
 const HUD_TRUST_POPOVER_MAX_HEIGHT = 480;
 const SYSTEM_REFRESH_MS = 2000;
 const OVERLAY_COORDINATOR_REFRESH_MS = 200;
+const OVERLAY_COORDINATOR_ACTIVE_REFRESH_MS = 50;
 const OVERLAY_DEFERRED_RETRY_MS = 75;
 const OVERLAY_DEFERRED_RETRY_MAX_MS = 600;
 const OVERLAY_ACTIVE_WINDOW_TIMEOUT_MS = 1000;
-const TOOL_DESKTOP_WAKE_MS = 75;
+const TOOL_DESKTOP_WAKE_MS = 40;
 const TOOL_DESKTOP_WAKE_TIMEOUT_MS = 300;
-const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 50;
+const TOOL_DESKTOP_WAKE_PROBE_INTERVAL_MS = 33;
 const TOOL_TRANSITION_SNAPSHOT_DELAY_MS = OVERLAY_COORDINATOR_REFRESH_MS;
 const HIDDEN_SNAPSHOT_REFRESH_MS = 5 * 60 * 1000;
 const ACTIVE_TOOL_TTL_MS = 10 * 60 * 1000;
@@ -814,6 +815,36 @@ async function refreshDesktopBarFromForeground() {
   return refreshOverlayCoordinator();
 }
 
+function getOverlayCoordinatorRefreshMs() {
+  const mode = latestOverlayDecision?.mode;
+  return mode === SURFACES.DESKTOP || mode === SURFACES.TOOL
+    ? OVERLAY_COORDINATOR_ACTIVE_REFRESH_MS
+    : OVERLAY_COORDINATOR_REFRESH_MS;
+}
+
+function scheduleOverlayCoordinatorTick(delayMs = getOverlayCoordinatorRefreshMs()) {
+  if (isQuitting || isHeadlessRuntime()) return;
+  if (desktopBarTimer) {
+    clearTimeout(desktopBarTimer);
+    desktopBarTimer = null;
+  }
+  desktopBarTimer = setTimeout(async () => {
+    desktopBarTimer = null;
+    try {
+      await refreshOverlayCoordinator();
+    } catch (error) {
+      writeHudDebugLog({
+        event: "overlay-coordinator",
+        outcome: "tick-failed",
+        error: error?.message || String(error)
+      });
+    } finally {
+      scheduleOverlayCoordinatorTick();
+    }
+  }, Math.max(0, delayMs));
+  desktopBarTimer.unref?.();
+}
+
 async function refreshOverlayCoordinator() {
   return runOverlayCoordinatorPass(getOverlayActiveWindow);
 }
@@ -1010,7 +1041,11 @@ async function applyOverlayDecision(decision) {
 async function applyOverlayTransition(decision, previousDecision) {
   if (decision.noise && decision.preserveOverlay) {
     if (decision.mode === SURFACES.TOOL) {
+      hideDesktopBarWindow("tool-hud-noise-preserve");
       scheduleToolDesktopWake();
+    } else if (decision.mode === SURFACES.DESKTOP && settings.windows.desktopBarEnabled) {
+      hideToolHudForDesktop(decision.activeWindow);
+      showDesktopBarWindow({ forceShow: true, promoteVisible: true });
     }
     scheduleOverlayDeferredRetry();
     writeOverlayDecisionDebug(decision, previousDecision);
@@ -1040,8 +1075,9 @@ async function applyOverlayTransition(decision, previousDecision) {
       hideDesktopBarWindow("tool-hud");
     } else {
       hideDesktopBarWindow("tool-hud");
+      let warmShown = false;
       if (shouldWarmShowToolHudForDecision(decision, previousDecision)) {
-        warmShowToolHudForTransition(decision);
+        warmShown = warmShowToolHudForTransition(decision) || quickShowToolHudForTransition(decision);
       }
       const shouldRefreshHud = shouldRefreshToolHudForDecision(decision, previousDecision);
       const shown = shouldRefreshHud
@@ -1065,7 +1101,7 @@ async function applyOverlayTransition(decision, previousDecision) {
       if (decision.toolContext) {
         rememberActiveTool(decision.toolContext.tool, decision.toolContext.window);
       }
-      if (!shown) {
+      if (!shown && !warmShown) {
         hideToolHudForUnsupportedForeground(decision.activeWindow, null);
       }
       scheduleToolDesktopWake();
@@ -1101,21 +1137,27 @@ function warmShowToolHudForTransition(decision) {
   if (!toolHudWindow || toolHudWindow.isDestroyed()) return false;
   if (!decision?.toolContext?.tool || !isOverlayDecisionCurrent(decision, SURFACES.TOOL)) return false;
   const payload = warmToolHudPayload;
-  if (!payload?.visible || !payload.tool?.id || !payload.activeWindow?.hwnd) return false;
+  if (!payload?.visible || !payload.tool?.id) return false;
   if (payload.tool.id !== decision.toolContext.tool.id) return false;
-
-  const expectedHwnd = String(decision.toolContext.window?.hwnd || decision.activeWindow?.hwnd || "");
-  const payloadHwnd = String(payload.activeWindow.hwnd || "");
-  if (!expectedHwnd || expectedHwnd !== payloadHwnd) return false;
 
   const anchorWindow = decision.toolContext.window || decision.activeWindow || payload.activeWindow;
   const display = getDisplayForActiveWindow(anchorWindow);
   const hudBounds = getHudBounds(display, decision.toolContext.tool, anchorWindow, settings) || warmToolHudBounds;
   if (!hudBounds) return false;
 
-  latestHudPayload = payload;
+  latestHudPayload = {
+    ...payload,
+    activeWindow: anchorWindow,
+    tool: decision.toolContext.tool,
+    transient: true,
+    transientReason: "overlay-transition-warm"
+  };
   setWindowBoundsIfChanged(toolHudWindow, hudBounds);
   sendHudUpdate(latestHudPayload);
+  lastVisibleHudPayload = latestHudPayload;
+  lastVisibleHudBounds = hudBounds;
+  lastVisibleHudAt = Date.now();
+  cacheWarmToolHudPayload();
   showToolHudWindow(hudBounds);
   writeHudDebugLog({
     event: "overlay-transition",
@@ -1125,6 +1167,43 @@ function warmShowToolHudForTransition(decision) {
     tool: summarizeHudTool(decision.toolContext.tool),
     activeWindow: summarizeHudWindow(anchorWindow),
     payloadAgeMs: warmToolHudAt ? Date.now() - warmToolHudAt : null,
+    hudWindowVisible: toolHudWindow.isVisible()
+  });
+  return true;
+}
+
+function quickShowToolHudForTransition(decision) {
+  if (!settings.windows.toolHudEnabled) return false;
+  if (!toolHudWindow || toolHudWindow.isDestroyed()) return false;
+  if (!latestSnapshot || !decision?.toolContext?.tool || !isOverlayDecisionCurrent(decision, SURFACES.TOOL)) return false;
+  const anchorWindow = decision.toolContext.window || decision.activeWindow;
+  if (!anchorWindow) return false;
+  const payload = buildHudPayload(latestSnapshot, anchorWindow, decision.toolContext.tool);
+  if (!payload?.visible) return false;
+
+  const display = getDisplayForActiveWindow(anchorWindow);
+  const hudBounds = getHudBounds(display, decision.toolContext.tool, anchorWindow, settings);
+  if (!hudBounds) return false;
+
+  latestHudPayload = {
+    ...payload,
+    transient: true,
+    transientReason: "overlay-transition-quick"
+  };
+  setWindowBoundsIfChanged(toolHudWindow, hudBounds);
+  sendHudUpdate(latestHudPayload);
+  lastVisibleHudPayload = latestHudPayload;
+  lastVisibleHudBounds = hudBounds;
+  lastVisibleHudAt = Date.now();
+  cacheWarmToolHudPayload();
+  showToolHudWindow(hudBounds);
+  writeHudDebugLog({
+    event: "overlay-transition",
+    outcome: "quick-tool-hud",
+    sampleId: decision.sampleId || null,
+    decisionVersion: decision.version || null,
+    tool: summarizeHudTool(decision.toolContext.tool),
+    activeWindow: summarizeHudWindow(anchorWindow),
     hudWindowVisible: toolHudWindow.isVisible()
   });
   return true;
@@ -1460,13 +1539,14 @@ function sendHudUpdate(payload) {
 function showDesktopBarWindow(options = {}) {
   if (!desktopBarWindow || desktopBarWindow.isDestroyed()) return;
   const promoteVisible = options.promoteVisible !== false;
+  const forceShow = options.forceShow === true;
   const before = getOverlayWindowState(desktopBarWindow);
   restoreOverlayWindowIfMinimized(desktopBarWindow);
   reinforceNonActivatingWindow(desktopBarWindow); // Pre-reinforce before alwaysOnTop + visibility changes
   desktopBarWindow.setAlwaysOnTop(true, "floating");
   let action = "already-visible";
-  if (!desktopBarWindow.isVisible()) {
-    action = "show-inactive";
+  if (!desktopBarWindow.isVisible() || forceShow) {
+    action = forceShow && desktopBarWindow.isVisible() ? "force-show-inactive" : "show-inactive";
     desktopBarWindow.showInactive();
   } else if (promoteVisible && typeof desktopBarWindow.moveTop === "function") {
     action = "move-top";
@@ -2613,13 +2693,13 @@ function readPortEnv(name, fallback) {
 
 function scheduleTimers() {
   if (snapshotTimer) clearTimeout(snapshotTimer);
-  if (desktopBarTimer) clearInterval(desktopBarTimer);
+  if (desktopBarTimer) clearTimeout(desktopBarTimer);
   if (systemTimer) clearInterval(systemTimer);
   snapshotTimer = null;
   scheduleNextSnapshotRefresh();
   systemTimer = setInterval(sendSystemMetrics, SYSTEM_REFRESH_MS);
   if (isHeadlessRuntime()) return;
-  desktopBarTimer = setInterval(refreshOverlayCoordinator, OVERLAY_COORDINATOR_REFRESH_MS);
+  scheduleOverlayCoordinatorTick(0);
 }
 
 function applyLoginItemSettings() {
@@ -2722,7 +2802,7 @@ app.on("before-quit", () => {
 
 app.on("will-quit", () => {
   if (snapshotTimer) clearTimeout(snapshotTimer);
-  if (desktopBarTimer) clearInterval(desktopBarTimer);
+  if (desktopBarTimer) clearTimeout(desktopBarTimer);
   if (toolDecisionSnapshotTimer) clearTimeout(toolDecisionSnapshotTimer);
   if (overlayDeferredRetryTimer) clearTimeout(overlayDeferredRetryTimer);
   clearToolDesktopWake();

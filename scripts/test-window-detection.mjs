@@ -873,8 +873,8 @@ function testOwnedOverlayInspectionFallback() {
   );
   assert.match(
     activeWindowSource,
-    /function Get-PreferredDesktopBaseForIgnoredForeground\(\)[\s\S]*?\$script:preferDesktopForIgnoredForeground[\s\S]*?Get-DesktopBasePayload[\s\S]*?if \(\$script:ignoredHwnds\.ContainsKey\(\[string\]\$payload\.hwnd\) -or \(Test-ExternalDesktopOverlayWindow \$payload\)\) \{[\s\S]*?\$desktopBasePayload = Get-PreferredDesktopBaseForIgnoredForeground[\s\S]*?\$payload = \$desktopBasePayload[\s\S]*?Get-FallbackForegroundPayload/,
-    "Owned/external overlay foreground samples must prefer the desktop base before considering any background app fallback."
+    /function Get-PreferredDesktopBaseForIgnoredForeground\(\)[\s\S]*?\$script:preferDesktopForIgnoredForeground[\s\S]*?Get-DesktopBasePayload[\s\S]*?\$shouldUseForegroundFallback =[\s\S]*?\$script:ignoredHwnds\.ContainsKey\(\[string\]\$payload\.hwnd\)[\s\S]*?Test-ExternalDesktopOverlayWindow \$payload[\s\S]*?Test-ZeroSizedUntitledDesktopHelperForeground \$payload[\s\S]*?Test-OffscreenSmallDesktopHelperForeground \$payload[\s\S]*?if \(\$shouldUseForegroundFallback\) \{[\s\S]*?\$desktopBasePayload = Get-PreferredDesktopBaseForIgnoredForeground[\s\S]*?\$payload = \$desktopBasePayload[\s\S]*?Get-FallbackForegroundPayload/,
+    "Owned/external overlay and offscreen helper foreground samples must prefer the desktop base before considering any background app fallback."
   );
   assert.match(
     activeWindowSource,

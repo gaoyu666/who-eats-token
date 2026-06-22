@@ -76,6 +76,7 @@ assert.equal(Object.hasOwn(aggressive, "desktopBarStage"), false, "Settings sani
 assert.equal(Object.hasOwn(aggressive, "unknown"), false, "Settings sanitizer must drop unknown top-level fields.");
 
 const guardedSettings = guardSettingsPayload({
+  tools: { tracked: ["cursor", "vscode-ai", "../bad"] },
   appearance: { glassOpacity: 0.4, injected: true },
   providers: {
     codex: { enabled: true, source: "forged" },
@@ -83,6 +84,7 @@ const guardedSettings = guardSettingsPayload({
   },
   providerRegistry: [{ id: "forged" }]
 });
+assert.deepEqual(guardedSettings.tools, { tracked: ["cursor", "vscode-ai", "../bad"] });
 assert.deepEqual(guardedSettings.appearance, { glassOpacity: 0.4 });
 assert.deepEqual(guardedSettings.providers.codex, { enabled: true });
 assert.equal(Object.hasOwn(guardedSettings, "providerRegistry"), false);

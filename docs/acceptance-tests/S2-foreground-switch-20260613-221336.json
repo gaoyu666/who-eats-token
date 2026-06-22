@@ -1,0 +1,213 @@
+﻿{
+    "test":  "S2-foreground-switch",
+    "stamp":  "20260613-221336",
+    "pass":  true,
+    "passVsForeground":  true,
+    "passCursorBackgroundDuringVs":  true,
+    "passCursorForeground":  true,
+    "passVscodeBackgroundDuringCursor":  true,
+    "passStripDom":  true,
+    "screenshot":  "C:\\Users\\lhy10\\Documents\\谁在吃token\\docs\\acceptance-tests\\S2-foreground-switch.png",
+    "setup":  {
+                  "action":  "setup",
+                  "ok":  true,
+                  "tracked":  [
+                                  "cursor",
+                                  "vscode-ai"
+                              ],
+                  "registry":  [
+                                   {
+                                       "id":  "cursor",
+                                       "name":  "Cursor",
+                                       "providerIds":  [
+                                                           "cursor",
+                                                           "openai",
+                                                           "anthropic"
+                                                       ],
+                                       "status":  "online-background",
+                                       "lastSeenAt":  1781359701137
+                                   },
+                                   {
+                                       "id":  "vscode-ai",
+                                       "name":  "VS Code AI",
+                                       "providerIds":  [
+                                                           "openai",
+                                                           "anthropic",
+                                                           "gemini"
+                                                       ],
+                                       "status":  "online-foreground",
+                                       "lastSeenAt":  1781360016722
+                                   }
+                               ]
+              },
+    "focusVs":  {
+                    "processName":  "Code",
+                    "pid":  45336,
+                    "title":  "Welcome - 谁在吃token - Visual Studio Code",
+                    "hwnd":  "26936670"
+                },
+    "afterVs":  {
+                    "action":  "sample",
+                    "ok":  true,
+                    "activeWindow":  {
+                                         "hwnd":  "26936670",
+                                         "pid":  45336,
+                                         "processName":  "Visual Studio Code",
+                                         "bundleId":  "",
+                                         "path":  "D:\\Microsoft VS Code\\Code.exe",
+                                         "title":  "Welcome - 谁在吃token - Visual Studio Code",
+                                         "url":  "",
+                                         "platform":  "windows",
+                                         "memoryUsageBytes":  151810048,
+                                         "className":  "",
+                                         "bounds":  {
+                                                        "x":  192,
+                                                        "y":  100,
+                                                        "width":  1216,
+                                                        "height":  808
+                                                    },
+                                         "contentOverlays":  [
+
+                                                             ],
+                                         "desktop":  {
+                                                         "clear":  false,
+                                                         "blockerCount":  0,
+                                                         "blockers":  [
+
+                                                                      ]
+                                                     },
+                                         "source":  "get-windows"
+                                     },
+                    "detectedTool":  {
+                                         "id":  "vscode-ai",
+                                         "name":  "VS Code AI",
+                                         "providerIds":  [
+                                                             "openai",
+                                                             "anthropic",
+                                                             "gemini"
+                                                         ],
+                                         "hud":  null
+                                     },
+                    "registry":  [
+                                     {
+                                         "id":  "cursor",
+                                         "name":  "Cursor",
+                                         "providerIds":  [
+                                                             "cursor",
+                                                             "openai",
+                                                             "anthropic"
+                                                         ],
+                                         "status":  "online-background",
+                                         "lastSeenAt":  1781359701137
+                                     },
+                                     {
+                                         "id":  "vscode-ai",
+                                         "name":  "VS Code AI",
+                                         "providerIds":  [
+                                                             "openai",
+                                                             "anthropic",
+                                                             "gemini"
+                                                         ],
+                                         "status":  "online-foreground",
+                                         "lastSeenAt":  1781360019709
+                                     }
+                                 ],
+                    "strip":  [
+                                  {
+                                      "text":  "Cursor",
+                                      "className":  "tool-chip status-online-background",
+                                      "title":  "Cursor · 后台"
+                                  },
+                                  {
+                                      "text":  "VS Code AI",
+                                      "className":  "tool-chip status-online-foreground",
+                                      "title":  "VS Code AI · 前台"
+                                  }
+                              ]
+                },
+    "focusCursor":  {
+                        "processName":  "Cursor",
+                        "pid":  44420,
+                        "title":  "谁在吃token - Cursor",
+                        "hwnd":  "1380060"
+                    },
+    "afterCursor":  {
+                        "action":  "sample",
+                        "ok":  true,
+                        "activeWindow":  {
+                                             "hwnd":  "1380060",
+                                             "pid":  44420,
+                                             "processName":  "Cursor",
+                                             "bundleId":  "",
+                                             "path":  "C:\\Users\\lhy10\\AppData\\Local\\Programs\\cursor\\Cursor.exe",
+                                             "title":  "谁在吃token - Cursor",
+                                             "url":  "",
+                                             "platform":  "windows",
+                                             "memoryUsageBytes":  189026304,
+                                             "className":  "",
+                                             "bounds":  {
+                                                            "x":  300,
+                                                            "y":  100,
+                                                            "width":  1000,
+                                                            "height":  800
+                                                        },
+                                             "contentOverlays":  [
+
+                                                                 ],
+                                             "desktop":  {
+                                                             "clear":  false,
+                                                             "blockerCount":  0,
+                                                             "blockers":  [
+
+                                                                          ]
+                                                         },
+                                             "source":  "get-windows"
+                                         },
+                        "detectedTool":  {
+                                             "id":  "cursor",
+                                             "name":  "Cursor",
+                                             "providerIds":  [
+                                                                 "cursor",
+                                                                 "openai",
+                                                                 "anthropic"
+                                                             ],
+                                             "hud":  null
+                                         },
+                        "registry":  [
+                                         {
+                                             "id":  "cursor",
+                                             "name":  "Cursor",
+                                             "providerIds":  [
+                                                                 "cursor",
+                                                                 "openai",
+                                                                 "anthropic"
+                                                             ],
+                                             "status":  "online-foreground",
+                                             "lastSeenAt":  1781360023440
+                                         },
+                                         {
+                                             "id":  "vscode-ai",
+                                             "name":  "VS Code AI",
+                                             "providerIds":  [
+                                                                 "openai",
+                                                                 "anthropic",
+                                                                 "gemini"
+                                                             ],
+                                             "status":  "online-background",
+                                             "lastSeenAt":  1781360019914
+                                         }
+                                     ],
+                        "strip":  [
+                                      {
+                                          "text":  "Cursor",
+                                          "className":  "tool-chip status-online-foreground",
+                                          "title":  "Cursor · 前台"
+                                      },
+                                      {
+                                          "text":  "VS Code AI",
+                                          "className":  "tool-chip status-online-background",
+                                          "title":  "VS Code AI · 后台"
+                                      }
+                                  ]
+                    }
+}

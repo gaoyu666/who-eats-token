@@ -520,7 +520,12 @@ $script:preferDesktopForIgnoredForeground = [bool]$config.preferDesktopForIgnore
 $script:blockingWindows = New-Object System.Collections.Generic.List[object]
 $hwnd = [ForegroundReader]::GetForegroundWindow()
 $payload = Get-WindowPayload $hwnd
-if ($script:ignoredHwnds.ContainsKey([string]$payload.hwnd) -or (Test-ExternalDesktopOverlayWindow $payload)) {
+$shouldUseForegroundFallback =
+  $script:ignoredHwnds.ContainsKey([string]$payload.hwnd) -or
+  (Test-ExternalDesktopOverlayWindow $payload) -or
+  (Test-ZeroSizedUntitledDesktopHelperForeground $payload) -or
+  (Test-OffscreenSmallDesktopHelperForeground $payload)
+if ($shouldUseForegroundFallback) {
   $desktopBasePayload = Get-PreferredDesktopBaseForIgnoredForeground
   if ($desktopBasePayload) {
     $payload = $desktopBasePayload
@@ -1211,6 +1216,8 @@ function isDesktopBaseCandidate(windowInfo, options = {}) {
   if (!hasUsableWindowBounds(windowInfo)) return false;
   if (isIgnoredWindow(windowInfo, ignoredHwnds)) return false;
   if (isZeroSizedExplorerShellWindow(windowInfo, platform)) return false;
+  if (isZeroSizedUntitledDesktopHelperForeground(windowInfo, platform)) return false;
+  if (isOffscreenSmallDesktopHelperForeground(windowInfo, desktopArea, platform)) return false;
   if (isExternalDesktopOverlayWindow(windowInfo, desktopArea, platform)) return false;
   if (options.allowDesktopShellBase === false && isDesktopShellBaseWindow(windowInfo, platform)) return false;
   return !isDesktopBaseSelectionNoise(windowInfo, platform);

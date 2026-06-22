@@ -1,0 +1,80 @@
+{
+  "version": 1,
+  "appearance": {
+    "glassOpacity": 0.43,
+    "glassBlur": 28,
+    "fontScale": 1
+  },
+  "windows": {
+    "desktopBarEnabled": true,
+    "toolHudEnabled": true,
+    "desktopWidthRatio": 0.5,
+    "desktopBarHeight": 64,
+    "toolHudWidth": 300,
+    "toolHudHeight": 128,
+    "toolHudOffsetX": 0,
+    "toolHudOffsetY": 0
+  },
+  "behavior": {
+    "alertsEnabled": true,
+    "refreshMs": 15000,
+    "activeWindowMs": 3000,
+    "debugHud": false
+  },
+  "system": {
+    "startAtLogin": true
+  },
+  "integrations": {
+    "hermesOverlayAutoInstall": false
+  },
+  "security": {
+    "allowUnauthenticatedNoOrigin": false
+  },
+  "alertThresholds": {
+    "caution": 40,
+    "danger": 20,
+    "critical": 10
+  },
+  "providers": {
+    "codex": {
+      "enabled": true,
+      "name": "Codex",
+      "source": "codex-jsonl"
+    },
+    "ingest": {
+      "enabled": true,
+      "name": "本地接入 API",
+      "source": "http-ingest"
+    },
+    "cursor": {
+      "enabled": true,
+      "name": "Cursor",
+      "source": "adapter-ingest"
+    },
+    "claude": {
+      "enabled": true,
+      "name": "Claude",
+      "source": "adapter-ingest"
+    },
+    "gemini": {
+      "enabled": true,
+      "name": "Gemini",
+      "source": "adapter-ingest"
+    },
+    "workbuddy": {
+      "enabled": true,
+      "name": "WorkBuddy",
+      "source": "workbuddy-local"
+    },
+    "trae": {
+      "enabled": true,
+      "name": "Trae",
+      "source": "adapter-ingest"
+    },
+    "hermes": {
+      "enabled": true,
+      "name": "Hermes",
+      "source": "hermes-local"
+    }
+  }
+}

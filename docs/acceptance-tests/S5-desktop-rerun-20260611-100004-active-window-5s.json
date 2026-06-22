@@ -1,0 +1,25 @@
+﻿{
+  "hwnd": "66088",
+  "pid": 2668,
+  "processName": "Windows 资源管理器",
+  "bundleId": "",
+  "path": "C:\\Windows\\explorer.exe",
+  "title": "Program Manager",
+  "url": "",
+  "platform": "windows",
+  "memoryUsageBytes": 654467072,
+  "className": "",
+  "bounds": {
+    "x": 0,
+    "y": 0,
+    "width": 1600,
+    "height": 1000
+  },
+  "contentOverlays": [],
+  "desktop": {
+    "clear": true,
+    "blockerCount": 0,
+    "blockers": []
+  },
+  "source": "get-windows-fast-desktop"
+}

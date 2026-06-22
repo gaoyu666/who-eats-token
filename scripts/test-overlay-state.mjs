@@ -9,7 +9,7 @@ const {
 
 testSamplingNoiseCannotPreserveTopbarIndefinitely();
 testActiveWindowTimeoutDoesNotHideConfirmedDesktop();
-testActiveWindowTimeoutDoesNotPreserveConfirmedDesktopIndefinitely();
+testActiveWindowTimeoutPreservesConfirmedDesktopUntilSignal();
 testDesktopAssistantSequenceSettlesOnDesktop();
 testRapidDesktopToolCyclesHaveOneTransitionPerPhase();
 testUnknownFullscreenFallsBackToHidden();
@@ -86,7 +86,7 @@ function testActiveWindowTimeoutDoesNotHideConfirmedDesktop() {
   assert.equal(decision.reason, "tool-foreground");
 }
 
-function testActiveWindowTimeoutDoesNotPreserveConfirmedDesktopIndefinitely() {
+function testActiveWindowTimeoutPreservesConfirmedDesktopUntilSignal() {
   const clock = createClock();
   const controller = createOverlayController({ now: clock.now, noiseGraceMs: 300 });
 
@@ -113,9 +113,18 @@ function testActiveWindowTimeoutDoesNotPreserveConfirmedDesktopIndefinitely() {
     samplingNoise: true,
     noiseReason: "active-window-timeout"
   });
-  assert.equal(decision.surface, SURFACES.HIDDEN);
+  assert.equal(decision.surface, SURFACES.DESKTOP);
   assert.equal(decision.reason, "active-window-timeout");
+  assert.equal(decision.preserveOverlay, true);
   assert.ok(decision.stalePreserveMs > 300);
+
+  decision = controller.resolve({
+    now: clock.tick(20),
+    sampleId: 4,
+    toolContext: codexContext()
+  });
+  assert.equal(decision.surface, SURFACES.TOOL);
+  assert.equal(decision.reason, "tool-foreground");
 }
 
 function testDesktopAssistantSequenceSettlesOnDesktop() {

@@ -1,0 +1,20 @@
+﻿{
+  "hwnd": 26874828,
+  "pid": 19740,
+  "processName": "svchost",
+  "path": "C:\\Windows\\system32\\svchost.exe",
+  "title": "",
+  "className": "NarratorHelperWindow",
+  "bounds": {
+    "y": -32000,
+    "width": 16,
+    "height": 16,
+    "x": -32000
+  },
+  "contentOverlays": [],
+  "desktop": {
+    "blockers": [],
+    "clear": false,
+    "blockerCount": 0
+  }
+}
