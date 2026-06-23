@@ -7,7 +7,8 @@ const { TOOL_RULES } = require("./tool-detector.cjs");
 
 /**
  * File-system probes for locally installed tools.
- * Browser-based tools (chatgpt, gemini, hermes-web-ui, deepseek, qwen, doubao)
+ * Browser/adapter-based tools (chatgpt, gemini, hermes-web-ui, workbuddy, trae,
+ * deepseek, qwen, doubao)
  * are always available since they only need a browser.
  * Desktop tools are detected by checking known install/session paths.
  */
@@ -21,8 +22,10 @@ const INSTALL_PROBES = {
   claude: () => fs.existsSync(path.join(os.homedir(), "AppData", "Roaming", "Claude")),
   chatgpt: () => true,
   "hermes-web-ui": () => true,
+  workbuddy: () => true,
   gemini: () => true,
   deepseek: () => true,
+  trae: () => true,
   qwen: () => true,
   doubao: () => true,
   "vscode-ai": () => {

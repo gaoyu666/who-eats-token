@@ -117,6 +117,51 @@ const fixtures = {
     pid: "100",
   },
 
+  trayOverflowPopup: {
+    hwnd: "22223",
+    processName: "explorer",
+    path: "/explorer.exe",
+    title: "Hidden Icons",
+    className: "NotifyIconOverflowWindow",
+    bounds: { x: 680, y: 700, width: 420, height: 220 },
+    pid: "100",
+  },
+
+  toolTrayPopup: {
+    hwnd: "22224",
+    processName: "chrome",
+    path: "/opt/google/chrome/chrome.exe",
+    title: "",
+    className: "#32768",
+    bounds: { x: 680, y: 700, width: 260, height: 180 },
+    pid: "1234",
+  },
+
+  toolWindowWithTrayPopupBlocker: {
+    hwnd: "22225",
+    processName: "chrome",
+    path: "/opt/google/chrome/chrome.exe",
+    title: "Google Chrome",
+    className: "Chrome_WidgetWin_1",
+    bounds: { x: 100, y: 100, width: 800, height: 600 },
+    pid: "1234",
+    desktop: {
+      clear: false,
+      blockerCount: 1,
+      blockers: [
+        {
+          hwnd: "22223",
+          processName: "explorer",
+          path: "/explorer.exe",
+          title: "Hidden Icons",
+          className: "NotifyIconOverflowWindow",
+          bounds: { x: 680, y: 700, width: 420, height: 220 },
+          pid: "100",
+        },
+      ],
+    },
+  },
+
   fullscreenWindow: {
     hwnd: "33333",
     processName: "vscode",
@@ -223,6 +268,7 @@ const expectedExports = [
   "getDetectedToolContext",
   "getForegroundToolContext",
   "getHudAnchorWindow",
+  "getHudSuppressingDesktopBlockers",
   "getToolDetectionBlockers",
   "getToolDetectionCandidates",
   "hasDesktopForegroundBlocker",
@@ -231,9 +277,12 @@ const expectedExports = [
   "isDesktopShellTransientForeground",
   "isForegroundFullscreen",
   "isForegroundSamplingNoise",
+  "isHudSuppressingForegroundPopup",
+  "isHudSuppressingShellPopup",
   "isOwnDesktopBar", // Note: not exported! Check below
   "isPotentialDialogParentWindow",
   "isShellForegroundWindow",
+  "isToolPopupMenuForeground",
   "isZeroSizedExplorerForeground",
   "normalizeToolDesktopWakeProbeWindow",
   "shouldInspectDesktopBlockersForToolDetection",
@@ -247,7 +296,7 @@ for (const fn of expectedExports) {
   assert(typeof td[fn] === "function", `Expected td.${fn} to be a function, got ${typeof td[fn]}`);
 }
 
-console.log("  ✅ All 19 expected functions are callable");
+console.log("  ✅ All expected functions are callable");
 
 // ── Test 2: shouldShowDesktopBar ───────────────────────────────────
 
@@ -319,6 +368,9 @@ assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(fixtures.dial
 assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(fixtures.normalWindow), false, "normal → false");
 assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(null), false, "null → false");
 assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(fixtures.blockerWindow), true, "non-dialog with blocker → true (OR second operand)");
+assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(fixtures.trayOverflowPopup), false, "tray overflow popup -> false");
+assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(fixtures.toolTrayPopup), false, "tool tray menu popup -> false");
+assert.strictEqual(td.shouldInspectDesktopBlockersForToolDetection(fixtures.toolWindowWithTrayPopupBlocker), false, "tool covered by tray popup -> false");
 
 console.log("  ✅ shouldInspectDesktopBlockersForToolDetection correct");
 
@@ -381,6 +433,9 @@ console.log("\n[Test 13] getForegroundToolContext");
 
 const fgCtx = td.getForegroundToolContext(fixtures.normalWindow);
 assert.ok(fgCtx, "foreground chrome → has tool context");
+assert.strictEqual(td.getForegroundToolContext(fixtures.trayOverflowPopup), null, "tray overflow foreground -> no tool HUD");
+assert.strictEqual(td.getForegroundToolContext(fixtures.toolTrayPopup), null, "tool-owned tray menu foreground -> no tool HUD");
+assert.strictEqual(td.getForegroundToolContext(fixtures.toolWindowWithTrayPopupBlocker), null, "tool covered by tray popup -> no tool HUD");
 
 console.log("  ✅ getForegroundToolContext correct");
 
@@ -450,9 +505,23 @@ assert.strictEqual(
 
 console.log("  ✅ isDesktopShellTransientForeground correct");
 
-// ── Test 18: doesWindowOverlapDesktopBar ───────────────────────────
+// ── Test 18: isHudSuppressingForegroundPopup ───────────────────────
 
-console.log("\n[Test 18] doesWindowOverlapDesktopBar");
+console.log("\n[Test 18] isHudSuppressingForegroundPopup");
+
+assert.strictEqual(td.isHudSuppressingForegroundPopup(fixtures.trayOverflowPopup), true, "tray overflow popup -> true");
+assert.strictEqual(td.isHudSuppressingShellPopup(fixtures.trayOverflowPopup), true, "tray overflow shell popup -> true");
+assert.strictEqual(td.isToolPopupMenuForeground(fixtures.toolTrayPopup), true, "tool-owned popup menu -> true");
+assert.strictEqual(td.isToolPopupMenuForeground({ ...fixtures.toolTrayPopup, className: "Chrome_WidgetWin_1" }), true, "tool-owned small untitled popup -> true");
+assert.strictEqual(td.isHudSuppressingForegroundPopup(fixtures.toolWindowWithTrayPopupBlocker), true, "tool covered by tray popup blocker -> true");
+assert.strictEqual(td.getHudSuppressingDesktopBlockers(fixtures.toolWindowWithTrayPopupBlocker).length, 1, "tray popup blocker is counted");
+assert.strictEqual(td.isHudSuppressingForegroundPopup(fixtures.normalWindow), false, "normal tool window -> false");
+
+console.log("  ✅ isHudSuppressingForegroundPopup correct");
+
+// ── Test 19: doesWindowOverlapDesktopBar ───────────────────────────
+
+console.log("\n[Test 19] doesWindowOverlapDesktopBar");
 
 assert.strictEqual(
   td.doesWindowOverlapDesktopBar({ bounds: { x: 0, y: 0, width: 1920, height: 64 } }),
@@ -469,7 +538,7 @@ console.log("  ✅ doesWindowOverlapDesktopBar correct");
 
 // ── Test 19: normalizeToolDesktopWakeProbeWindow ───────────────────
 
-console.log("\n[Test 19] normalizeToolDesktopWakeProbeWindow");
+console.log("\n[Test 20] normalizeToolDesktopWakeProbeWindow");
 
 const normalized = td.normalizeToolDesktopWakeProbeWindow(fixtures.validWakePayload);
 assert.strictEqual(normalized.hwnd, "88888");
@@ -483,9 +552,9 @@ assert.strictEqual(normalizedEmpty.source, "tool-desktop-wake-probe");
 
 console.log("  ✅ normalizeToolDesktopWakeProbeWindow correct");
 
-// ── Test 20: getToolDetectionCandidates ────────────────────────────
+// ── Test 21: getToolDetectionCandidates ────────────────────────────
 
-console.log("\n[Test 20] getToolDetectionCandidates");
+console.log("\n[Test 21] getToolDetectionCandidates");
 
 const candidatesResult = td.getToolDetectionCandidates(fixtures.normalWindow);
 assert.ok(Array.isArray(candidatesResult), "candidates must be array");
@@ -493,9 +562,9 @@ assert.strictEqual(candidatesResult.length, 1, "single candidate for normal wind
 
 console.log("  ✅ getToolDetectionCandidates correct");
 
-// ── Test 21: DI closure verification ───────────────────────────────
+// ── Test 22: DI closure verification ───────────────────────────────
 
-console.log("\n[Test 21] DI closure captures settings correctly");
+console.log("\n[Test 22] DI closure captures settings correctly");
 
 // Reset and re-create with settings tracking
 let settingsCaptured = null;
@@ -529,9 +598,9 @@ assert.ok(settingsCaptured !== undefined || true, "getToolHudSize DI was invoked
 
 console.log("  ✅ DI closure wiring verified");
 
-// ── Test 22: getDisplayBounds shape ─────────────────────────────────
+// ── Test 23: getDisplayBounds shape ─────────────────────────────────
 
-console.log("\n[Test 22] getDisplayBounds shape consistency");
+console.log("\n[Test 23] getDisplayBounds shape consistency");
 
 // getDisplayBounds returns normalized bounds. isForegroundFullscreen should use it directly.
 // No double-normalize issue since the mock returns already-normalized bounds.
@@ -543,7 +612,7 @@ console.log("  ✅ getDisplayBounds shape consistent (no double-normalize)");
 // ── Summary ────────────────────────────────────────────────────────
 
 console.log("\n═══════════════════════════════════════════════");
-console.log("All 22 test groups passed ✅");
+console.log("All 23 test groups passed ✅");
 console.log("═══════════════════════════════════════════════");
 console.log("\nWhat was verified:");
 console.log("  1. Factory instantiation (DI wiring)");
@@ -561,8 +630,9 @@ console.log("  14. getHudAnchorWindow");
 console.log("  15. isForegroundSamplingNoise");
 console.log("  16. isZeroSizedExplorerForeground");
 console.log("  17. isDesktopShellTransientForeground");
-console.log("  18. doesWindowOverlapDesktopBar");
-console.log("  19. normalizeToolDesktopWakeProbeWindow");
-console.log("  20. getToolDetectionCandidates");
-console.log("  21. DI closure wiring");
-console.log("  22. getDisplayBounds shape consistency");
+console.log("  18. isHudSuppressingForegroundPopup");
+console.log("  19. doesWindowOverlapDesktopBar");
+console.log("  20. normalizeToolDesktopWakeProbeWindow");
+console.log("  21. getToolDetectionCandidates");
+console.log("  22. DI closure wiring");
+console.log("  23. getDisplayBounds shape consistency");

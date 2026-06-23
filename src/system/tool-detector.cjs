@@ -32,6 +32,10 @@ const CONTENT_OVERLAY_KEYWORD_PATTERN =
   /(消息队列|继续|还没好吗|还没好|没好|好了|重试|取消|发送|选择文件夹|选择文件|Message\s*Queue|\bQueue\b|\bContinue\b|Not\s*yet|Still\s*not|Retry|Cancel|Send|Choose\s*Folder|Choose\s*File)/i;
 const ROOT_LAYOUT_PATTERN =
   /(^|\s|[-_])(app-main|main-layout|router-view|page-shell|app-shell|chat-view|app\s*main)(\s|[-_]|$)/i;
+const WORKBUDDY_TITLE_PATTERN = /(workbuddy|codebuddy|腾讯云代码助手)/i;
+const WORKBUDDY_BROWSER_PATTERN = /(codebuddy\.(?:cn|ai)|workbuddy\.(?:cn|ai|com)|workbuddy\.ai)/i;
+const TRAE_TITLE_PATTERN = /(^|\b|[\s_-])trae(\b|[\s_-]|$)/i;
+const TRAE_BROWSER_PATTERN = /(?:^|\.)trae\.(?:ai|cn|com)(?:[/:]|$)/i;
 
 const TOOL_RULES = [
   {
@@ -74,6 +78,14 @@ const TOOL_RULES = [
       (BROWSER_PROCESSES.has(processName) && isHermesBrowserWindow(title, path, url))
   },
   {
+    id: "workbuddy",
+    name: "WorkBuddy",
+    providerIds: ["workbuddy"],
+    match: ({ processName, title, path, url }) =>
+      isWorkBuddyProcess(processName, path) ||
+      (BROWSER_PROCESSES.has(processName) && isWorkBuddyBrowserWindow(title, path, url))
+  },
+  {
     id: "gemini",
     name: "Gemini",
     providerIds: ["gemini", "google"],
@@ -87,6 +99,14 @@ const TOOL_RULES = [
     providerIds: ["deepseek"],
     match: ({ processName, title }) =>
       processName === "deepseek" || titleMentionsTool(processName, title, /deepseek/i)
+  },
+  {
+    id: "trae",
+    name: "Trae",
+    providerIds: ["trae"],
+    match: ({ processName, title, path, url }) =>
+      isTraeProcess(processName, path) ||
+      (BROWSER_PROCESSES.has(processName) && isTraeBrowserWindow(title, path, url))
   },
   {
     id: "qwen",
@@ -141,6 +161,32 @@ function isHermesBrowserWindow(title, path, url) {
   const target = `${normalizedTitle} ${path || ""} ${url || ""}`;
   return /^hermes(?:\s+(?:web\s*ui|agent|chat))?(?:\s*-\s*(google chrome|microsoft edge|mozilla firefox|firefox|safari))?$/i.test(normalizedTitle) ||
     /(127\.0\.0\.1:8648|localhost:8648|\/hermes\/chat)/i.test(target);
+}
+
+function isWorkBuddyProcess(processName, path) {
+  const target = `${processName || ""} ${path || ""}`.toLowerCase();
+  return /(^|[\\/\s._-])(workbuddy|codebuddy|workbuddyextension|codebuddyextension)(?:\.exe)?($|[\\/\s._-])/i.test(target) ||
+    /tencent[\\/].*codebuddy/i.test(target);
+}
+
+function isWorkBuddyBrowserWindow(title, path, url) {
+  const normalizedTitle = String(title || "").trim();
+  const target = `${normalizedTitle} ${path || ""} ${url || ""}`;
+  return WORKBUDDY_BROWSER_PATTERN.test(target) ||
+    /^workbuddy(?:\s*[-|–].*)?$/i.test(normalizedTitle) ||
+    /^codebuddy(?:\s+(?:ide|coding|agent))?(?:\s*[-|–].*)?$/i.test(normalizedTitle) ||
+    WORKBUDDY_TITLE_PATTERN.test(normalizedTitle);
+}
+
+function isTraeProcess(processName, path) {
+  const target = `${processName || ""} ${path || ""}`.toLowerCase();
+  return /(^|[\\/\s._-])trae(?:\.exe)?($|[\\/\s._-])/i.test(target);
+}
+
+function isTraeBrowserWindow(title, path, url) {
+  const normalizedTitle = String(title || "").trim();
+  const target = `${normalizedTitle} ${path || ""} ${url || ""}`;
+  return TRAE_BROWSER_PATTERN.test(target) || TRAE_TITLE_PATTERN.test(normalizedTitle);
 }
 
 function detectTool(activeWindow) {

@@ -68,6 +68,7 @@ function renderHud(payload) {
   document.body.dataset.delightMood = delight?.mood || "watching";
   document.body.dataset.delightTone = delight?.tone || "muted";
   document.body.dataset.motion = delight?.motion || "none";
+  document.body.dataset.metricLayout = getMetricLayout(provider);
   renderHudMetrics(provider);
   renderHudChart(provider);
   renderHudPills(provider);
@@ -85,19 +86,36 @@ function applyVisualSettings(settings) {
 }
 
 function renderMetric(metric, valueElement, value) {
-  valueElement.textContent = formatPercent(value);
+  setMetricValue(valueElement, formatPercent(value));
   metric.dataset.level = getRemainingLevel(value);
   metric.style.setProperty("--metric-color", getMetricColor(metric.id, value));
 }
 
 function renderTokenMetric(metric, valueElement, value, referenceRemaining = null) {
-  valueElement.textContent = value === null || value === undefined ? "--" : formatTokens(value);
+  setMetricValue(valueElement, value === null || value === undefined ? "--" : formatTokens(value));
   metric.dataset.level = getRemainingLevel(referenceRemaining);
   metric.style.setProperty("--metric-color", getMetricColor(metric.id, referenceRemaining));
 }
 
 function renderHudMetrics(provider) {
   const mode = provider?.displayMode || "waiting";
+  if (isWorkBuddyTokenPlan(provider)) {
+    setHudLabels("实时积分", "总额度", "left", "total");
+    renderExactCreditMetric(
+      els.hudFiveMetric,
+      els.hudFiveHour,
+      provider?.tokenPlanRemainingCredits,
+      provider?.tokenPlanRemaining
+    );
+    renderExactCreditMetric(
+      els.hudWeekMetric,
+      els.hudWeek,
+      provider?.tokenPlanTotalCredits,
+      provider?.tokenPlanRemaining
+    );
+    return;
+  }
+
   if (mode === "token-plan") {
     setHudLabels("总余量", "已用", "left", "used");
     renderMetric(els.hudFiveMetric, els.hudFiveHour, provider?.tokenPlanRemaining);
@@ -125,9 +143,28 @@ function renderHudMetrics(provider) {
 }
 
 function renderCreditMetric(metric, valueElement, value, referenceRemaining = null) {
-  valueElement.textContent = value === null || value === undefined ? "--" : formatCredits(value);
+  setMetricValue(valueElement, value === null || value === undefined ? "--" : formatCredits(value));
   metric.dataset.level = getRemainingLevel(referenceRemaining);
   metric.style.setProperty("--metric-color", getMetricColor(metric.id, referenceRemaining));
+}
+
+function renderExactCreditMetric(metric, valueElement, value, referenceRemaining = null) {
+  setMetricValue(valueElement, formatExactCredits(value));
+  metric.dataset.level = getRemainingLevel(referenceRemaining);
+  metric.style.setProperty("--metric-color", getMetricColor(metric.id, referenceRemaining));
+}
+
+function setMetricValue(valueElement, value) {
+  const text = String(value ?? "--");
+  valueElement.textContent = text;
+  valueElement.dataset.size = getMetricTextSize(text);
+}
+
+function getMetricTextSize(text) {
+  const length = String(text || "").length;
+  if (length >= 10) return "tiny";
+  if (length >= 8) return "compact";
+  return "normal";
 }
 
 function setHudLabels(first, second, firstCaption, secondCaption) {
@@ -255,6 +292,14 @@ function getForecastLabel(provider) {
 function getHudMeta(provider) {
   if (!provider) return "等待接入";
   if (provider.displayMode === "token-plan") {
+    if (isWorkBuddyTokenPlan(provider)) {
+      const used = formatExactCredits(provider.tokenPlanUsedCredits);
+      const age = provider.trust?.ageMs !== null && provider.trust?.ageMs !== undefined
+        ? ` · 更新 ${formatAge(provider.trust.ageMs)}`
+        : "";
+      const validUntil = formatDate(provider.tokenPlanValidUntil);
+      return `已用 ${used} · 实时积分${age}${validUntil}`;
+    }
     const source = provider.tokenPlanSource === "xiaomi-platform"
       ? "平台实时"
       : provider.tokenPlanSnapshotAt
@@ -412,6 +457,9 @@ function getRecentTokenSignal(provider) {
 
 function getQuotaBasis(provider) {
   if (!provider) return "等待可用余量口径";
+  if (isWorkBuddyTokenPlan(provider)) {
+    return `WorkBuddy 实时积分余额 ${formatExactCredits(provider.tokenPlanRemainingCredits)}，本周期/套餐总额度 ${formatExactCredits(provider.tokenPlanTotalCredits)}`;
+  }
   if (provider.displayMode === "token-plan") {
     return `Token Plan 剩余 / 总量 = ${formatPercent(provider.tokenPlanRemaining)}（${formatCredits(provider.tokenPlanRemainingCredits)} / ${formatCredits(provider.tokenPlanTotalCredits)} Credits）`;
   }
@@ -477,6 +525,22 @@ function formatTokens(value) {
 
 function formatCredits(value) {
   return formatTokens(value);
+}
+
+function formatExactCredits(value) {
+  if (value === null || value === undefined || value === "") return "--";
+  const number = Number(value);
+  if (!Number.isFinite(number)) return "--";
+  if (Number.isInteger(number)) return String(number);
+  return String(Math.round(number * 100) / 100);
+}
+
+function isWorkBuddyTokenPlan(provider) {
+  return provider?.id === "workbuddy" && provider?.displayMode === "token-plan";
+}
+
+function getMetricLayout(provider) {
+  return isWorkBuddyTokenPlan(provider) ? "rows" : "columns";
 }
 
 function clamp(value, min, max) {

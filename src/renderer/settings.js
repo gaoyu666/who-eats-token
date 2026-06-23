@@ -220,6 +220,8 @@ function formatOutput(path, value) {
 function getProviderSourceLabel(source) {
   if (source === "codex-jsonl") return "实时";
   if (source === "http-ingest") return "本地 API";
+  if (source === "adapter-ingest") return "本地接入";
+  if (source === "workbuddy-local") return "实时积分";
   if (source === "hermes-local") return "Token Plan";
   if (source === "hermes-bridge") return "桥接";
   return "预留";

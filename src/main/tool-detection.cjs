@@ -28,6 +28,62 @@ function createToolDetection({
       isZeroSizedExplorerForeground(activeWindow);
   }
 
+  function isHudSuppressingForegroundPopup(activeWindow) {
+    return isHudSuppressingShellPopup(activeWindow) ||
+      isToolPopupMenuForeground(activeWindow) ||
+      getHudSuppressingDesktopBlockers(activeWindow).length > 0;
+  }
+
+  function getHudSuppressingDesktopBlockers(activeWindow) {
+    const blockers = Array.isArray(activeWindow?.desktop?.blockers)
+      ? activeWindow.desktop.blockers
+      : [];
+    return blockers.filter((blocker) =>
+      isHudSuppressingShellPopup(blocker) ||
+      isToolPopupMenuForeground(blocker)
+    );
+  }
+
+  function isHudSuppressingShellPopup(activeWindow) {
+    const processName = String(activeWindow?.processName || "").toLowerCase();
+    const path = String(activeWindow?.path || "").toLowerCase();
+    const className = String(activeWindow?.className || "").trim().toLowerCase();
+    const title = String(activeWindow?.title || "").trim().toLowerCase();
+    const isExplorer = processName === "explorer" || path.endsWith("\\explorer.exe") || path.endsWith("/explorer.exe");
+    if (!isExplorer) return false;
+    if ([
+      "shell_traywnd",
+      "shell_secondarytraywnd",
+      "dv2controlhost",
+      "notifyiconoverflowwindow",
+      "toplevelwindowforoverflowxamlisland",
+      "xaml_hosting_windowedpopupclass",
+      "xaml_hosting_windowed_popup_class",
+      "tasklistthumbnailwnd",
+      "taskswitcherwnd",
+      "mstasklistwclass"
+    ].includes(className)) {
+      return true;
+    }
+    return /notifyicon|overflow|hidden icons|tray|taskbar/.test(title);
+  }
+
+  function isToolPopupMenuForeground(activeWindow) {
+    const processName = String(activeWindow?.processName || "").toLowerCase();
+    const path = String(activeWindow?.path || "").toLowerCase();
+    const className = String(activeWindow?.className || "").trim().toLowerCase();
+    const title = String(activeWindow?.title || "").trim();
+    const bounds = normalizeBounds(activeWindow?.bounds);
+    const isExplorer = processName === "explorer" || path.endsWith("\\explorer.exe") || path.endsWith("/explorer.exe");
+    if (isExplorer) return false;
+    if (!detectTool(activeWindow)) return false;
+    if (className === "#32768") return true;
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) return false;
+    if (bounds.width > 720 || bounds.height > 520) return false;
+    if (!title) return true;
+    return /menu|popup|context|tooltip|dropdown|flyout/.test(className);
+  }
+
   function isZeroSizedExplorerForeground(activeWindow) {
     const processName = String(activeWindow?.processName || "").toLowerCase();
     const pathText = String(activeWindow?.path || "").toLowerCase();
@@ -158,6 +214,7 @@ function createToolDetection({
 
   function shouldInspectDesktopBlockersForToolDetection(activeWindow) {
     if (!activeWindow) return false;
+    if (isHudSuppressingForegroundPopup(activeWindow)) return false;
     if (isDialogWindow(activeWindow)) return true;
     return hasDesktopForegroundBlocker(activeWindow);
   }
@@ -189,6 +246,7 @@ function createToolDetection({
   }
 
   function getDetectedToolContext(activeWindow) {
+    if (isHudSuppressingForegroundPopup(activeWindow)) return null;
     for (const candidateWindow of getToolDetectionCandidates(activeWindow)) {
       const anchorWindow = getHudAnchorWindow(candidateWindow);
       const tool = detectTool(candidateWindow) || detectTool(anchorWindow);
@@ -203,6 +261,7 @@ function createToolDetection({
   }
 
   function getForegroundToolContext(activeWindow) {
+    if (isHudSuppressingForegroundPopup(activeWindow)) return null;
     const candidates = [];
     addWindowCandidate(candidates, activeWindow);
     addWindowCandidate(candidates, getHudAnchorWindow(activeWindow));
@@ -271,13 +330,17 @@ function createToolDetection({
     getToolDetectionBlockers,
     getToolDetectionCandidates,
     hasDesktopForegroundBlocker,
+    getHudSuppressingDesktopBlockers,
     isDesktopForeground,
     isDesktopOverlayForeground,
     isDesktopShellTransientForeground,
     isForegroundFullscreen,
     isForegroundSamplingNoise,
+    isHudSuppressingForegroundPopup,
+    isHudSuppressingShellPopup,
     isPotentialDialogParentWindow,
     isShellForegroundWindow,
+    isToolPopupMenuForeground,
     isZeroSizedExplorerForeground,
     normalizeToolDesktopWakeProbeWindow,
     shouldInspectDesktopBlockersForToolDetection,

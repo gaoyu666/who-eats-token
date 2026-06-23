@@ -4,6 +4,7 @@ const { mergeTokenAccuracies, normalizeTokenAccuracy } = require("../protocol/to
 function createSnapshotService({
   collectCodexUsage,
   collectHermesUsage,
+  collectWorkBuddyUsage,
   getIngestServer,
   getHermesBridgeServer,
   getSystemMetrics,
@@ -13,10 +14,13 @@ function createSnapshotService({
   summarizeProviders
 } = {}) {
   return {
-    collectSnapshot() {
+    collectSnapshot(options = {}) {
       const collectedAt = new Date();
       const codex = isProviderEnabled("codex") ? collectCodexUsage() : null;
       const hermes = isProviderEnabled("hermes") ? collectHermesUsage() : null;
+      const workbuddy = isProviderEnabled("workbuddy") && collectWorkBuddyUsage
+        ? collectWorkBuddyUsage(options.workbuddy || {})
+        : null;
       const ingestServer = getIngestServer();
       const hermesBridgeServer = getHermesBridgeServer();
       const ingest = ingestServer ? ingestServer.getSummary() : null;
@@ -24,6 +28,7 @@ function createSnapshotService({
         mergeProviders([
           codex,
           hermes,
+          workbuddy,
           ...(isProviderEnabled("ingest") ? ingest?.providers || [] : [])
         ].filter(Boolean)),
         collectedAt

@@ -18,26 +18,42 @@ const PROVIDER_REGISTRY = [
   {
     id: "cursor",
     name: "Cursor",
-    source: "planned",
-    description: "预留 Cursor / IDE 插件接入位。",
+    source: "adapter-ingest",
+    description: "通过本地接入 API、IDE 插件或 wrapper 上报 Cursor 用量。",
     configurable: true,
-    enabledByDefault: false
+    enabledByDefault: true
   },
   {
     id: "claude",
     name: "Claude",
-    source: "planned",
-    description: "预留 Claude Code 或 Anthropic API 接入位。",
+    source: "adapter-ingest",
+    description: "通过本地接入 API、CLI wrapper 或 importer 上报 Claude 用量。",
     configurable: true,
-    enabledByDefault: false
+    enabledByDefault: true
   },
   {
     id: "gemini",
     name: "Gemini",
-    source: "planned",
-    description: "预留 Gemini CLI / Google API 接入位。",
+    source: "adapter-ingest",
+    description: "通过本地接入 API、CLI wrapper 或 importer 上报 Gemini 用量。",
     configurable: true,
-    enabledByDefault: false
+    enabledByDefault: true
+  },
+  {
+    id: "workbuddy",
+    name: "WorkBuddy",
+    source: "workbuddy-local",
+    description: "读取本地 WorkBuddy 登录态并同步官方 billing 实时积分余额。",
+    configurable: true,
+    enabledByDefault: true
+  },
+  {
+    id: "trae",
+    name: "Trae",
+    source: "adapter-ingest",
+    description: "通过本地接入 API、MCP、wrapper 或 importer 上报 Trae 用量。",
+    configurable: true,
+    enabledByDefault: true
   },
   {
     id: "hermes",

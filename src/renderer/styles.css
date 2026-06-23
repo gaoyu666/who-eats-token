@@ -2156,8 +2156,32 @@ body[data-delight-mood="asleep"] .hud::after {
   gap: 8px;
 }
 
+body[data-metric-layout="rows"] .hud-stats {
+  grid-template-columns: minmax(0, 1fr) 46px 66px;
+  grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: 10px;
+  row-gap: 4px;
+}
+
 .hud-stat {
   min-width: 0;
+}
+
+body[data-metric-layout="rows"] .hud-stat {
+  display: grid;
+  grid-template-columns: 72px minmax(92px, 1fr);
+  align-items: baseline;
+  gap: 8px;
+}
+
+body[data-metric-layout="rows"] #hudFiveMetric {
+  grid-column: 1;
+  grid-row: 1;
+}
+
+body[data-metric-layout="rows"] #hudWeekMetric {
+  grid-column: 1;
+  grid-row: 2;
 }
 
 .hud-label {
@@ -2183,6 +2207,24 @@ body[data-delight-mood="asleep"] .hud::after {
   text-shadow: 0 1px 10px rgba(255, 255, 255, 0.12);
 }
 
+body[data-metric-layout="rows"] .hud-stat strong {
+  margin-top: 0;
+  justify-self: start;
+  font-size: 21px;
+  font-size: calc(21px * var(--font-scale));
+  white-space: nowrap;
+}
+
+.hud-stat strong[data-size="compact"] {
+  font-size: 19px;
+  font-size: calc(19px * var(--font-scale));
+}
+
+.hud-stat strong[data-size="tiny"] {
+  font-size: 17px;
+  font-size: calc(17px * var(--font-scale));
+}
+
 .hud-chart {
   --five-fill: 0%;
   --week-fill: 0%;
@@ -2203,6 +2245,25 @@ body[data-delight-mood="asleep"] .hud::after {
   height: 33px;
 }
 
+body[data-metric-layout="rows"] .hud-chart {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: 46px;
+  height: 50px;
+  gap: 7px;
+}
+
+body[data-metric-layout="rows"] .hud-chart .chart-column {
+  height: 46px;
+}
+
+body[data-metric-layout="rows"] .hud-chart .chart-track {
+  width: 10px;
+  height: 31px;
+  background: transparent;
+  box-shadow: none;
+}
+
 .hud-mascot {
   position: relative;
   z-index: 1;
@@ -2216,6 +2277,13 @@ body[data-delight-mood="asleep"] .hud::after {
   background-size: contain;
   filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.22));
   transform-origin: 50% 84%;
+}
+
+body[data-metric-layout="rows"] .hud-mascot {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  width: 64px;
+  height: 56px;
 }
 
 .hud-mascot::before,

@@ -97,6 +97,33 @@ function testToolDetectionAndOverlayAvoidance() {
   assert.equal(hermes.hud?.bottomOffset, undefined, "Hermes Web UI should use the same default HUD anchor as other tools.");
   assert.deepEqual(hermes.providerIds, ["hermes"], "Hermes HUD must only read Hermes provider data.");
 
+  const workbuddyProcess = detectTool({
+    processName: "WorkBuddy",
+    title: "WorkBuddy"
+  });
+  assert.equal(workbuddyProcess?.id, "workbuddy", "The WorkBuddy desktop process should resolve to WorkBuddy.");
+  assert.deepEqual(workbuddyProcess.providerIds, ["workbuddy"], "WorkBuddy HUD must only read WorkBuddy provider data.");
+
+  const workbuddyBrowser = detectTool({
+    processName: "Google Chrome",
+    title: "CodeBuddy IDE - Google Chrome",
+    url: "https://www.codebuddy.cn/"
+  });
+  assert.equal(workbuddyBrowser?.id, "workbuddy", "CodeBuddy/WorkBuddy browser hosts should resolve to WorkBuddy.");
+
+  const workbuddyExtensionProcess = detectTool({
+    processName: "CodeBuddyExtension",
+    title: "WorkBuddy"
+  });
+  assert.equal(workbuddyExtensionProcess?.id, "workbuddy", "CodeBuddyExtension process names should resolve to WorkBuddy.");
+
+  const traeProcess = detectTool({
+    processName: "Trae",
+    title: "Trae"
+  });
+  assert.equal(traeProcess?.id, "trae", "The Trae desktop process should resolve to Trae.");
+  assert.deepEqual(traeProcess.providerIds, ["trae"], "Trae HUD must read Trae adapter data first.");
+
   const unrelatedChrome = detectTool({
     processName: "Google Chrome",
     title: "Example Domain - Google Chrome",
@@ -279,6 +306,39 @@ function testHudRendererCoupledVisuals() {
 
   harness.callbacks.onHudUpdate({
     visible: true,
+    tool: { name: "WorkBuddy" },
+    provider: {
+      id: "workbuddy",
+      name: "WorkBuddy",
+      displayMode: "token-plan",
+      syncStatus: "live",
+      tokenPlanRemaining: 34,
+      tokenPlanUsedPercent: 66,
+      tokenPlanRemainingCredits: 3422.33,
+      tokenPlanUsedCredits: 6577.67,
+      tokenPlanTotalCredits: 10000,
+      tokenPlanSource: "workbuddy-official-billing",
+      tokenPlanPlanName: "WorkBuddy Pro Daily",
+      trust: { level: "exact-provider", label: "精确", sourceLabel: "workbuddy-official-billing", ageMs: 0 },
+      delight: {
+        mood: "tight",
+        cue: { mascot: "careful" },
+        a11yLabel: "余量偏紧：轻量推进"
+      }
+    }
+  });
+  assert.equal(harness.text("toolName"), "WorkBuddy", "WorkBuddy HUD should keep the active tool name.");
+  assert.equal(harness.text("hudFiveLabelText"), "实时积分", "WorkBuddy HUD should label live credits directly.");
+  assert.equal(harness.text("hudWeekLabelText"), "总额度", "WorkBuddy HUD should label total plan credits directly.");
+  assert.equal(harness.text("hudFiveHour"), "3422.33", "WorkBuddy remaining credits must not be compacted to k/M.");
+  assert.equal(harness.text("hudWeek"), "10000", "WorkBuddy total credits must not be compacted to k/M.");
+  assert.equal(harness.style("hudChart", "--five-fill"), "34%", "WorkBuddy chart should keep showing remaining percent.");
+  assert.equal(harness.style("hudChart", "--week-fill"), "66%", "WorkBuddy chart should keep showing used percent.");
+  assert.equal(harness.dataset("hudMascot", "mascot"), "careful", "WorkBuddy HUD must keep the mascot visible and stateful.");
+  assert.match(harness.text("hudMeta"), /已用 6577\.67 · 实时积分/, "WorkBuddy HUD footer should explain used credits without a raw remaining/total slash.");
+
+  harness.callbacks.onHudUpdate({
+    visible: true,
     tool: { name: "Codex" },
     provider: {
       id: "codex",
@@ -316,6 +376,7 @@ function testHudWindowLifecycleGuards() {
   const wakeProbeSource = read("src/main/wake-probe.ps1");
   const activeWindowSource = read("src/system/active-window.cjs");
   const overlayControllerSource = read("src/main/overlay-controller.cjs");
+  const snapshotServiceSource = read("src/main/snapshot-service.cjs");
   const stressSource = read("scripts/stress-overlay-switch.mjs");
   const preloadSource = read("src/preload.cjs");
   const hudHitboxSource = read("src/renderer/hud-hitbox.js");
@@ -328,6 +389,36 @@ function testHudWindowLifecycleGuards() {
   const runToolDesktopWakeSource = extractFunction(mainSource, "async function runToolDesktopWake");
   const handleToolDesktopWakeProbeLineSource = extractFunction(mainSource, "function handleToolDesktopWakeProbeLine");
   const toolDesktopWakeInspectionSource = extractFunction(mainSource, "function getToolDesktopWakeInspectionOptions");
+  assert.match(
+    mainSource,
+    /collectWorkBuddyUsage, setWorkBuddyRefreshHandler/,
+    "The main process should import the WorkBuddy local billing collector and refresh callback."
+  );
+  assert.match(
+    snapshotServiceSource,
+    /collectWorkBuddyUsage[\s\S]*?isProviderEnabled\("workbuddy"\)[\s\S]*?collectWorkBuddyUsage\(options\.workbuddy \|\| \{\}\)/,
+    "The snapshot service should collect WorkBuddy local billing data when the WorkBuddy provider is enabled."
+  );
+  assert.match(
+    snapshotServiceSource,
+    /codex,[\s\S]*?hermes,[\s\S]*?workbuddy,[\s\S]*?\.\.\.\(isProviderEnabled\("ingest"\)/,
+    "WorkBuddy local data should merge before generic ingest events so status fallback remains additive."
+  );
+  assert.match(
+    mainSource,
+    /collectWorkBuddyUsage,/,
+    "Snapshot service wiring should receive the WorkBuddy local collector."
+  );
+  assert.match(
+    mainSource,
+    /function scheduleWorkBuddySnapshotRefresh\(\)[\s\S]*?isWorkBuddyToolHudVisible\(\)[\s\S]*?sendSnapshot\(\)/,
+    "WorkBuddy billing refresh completion should trigger a follow-up snapshot while its HUD is visible."
+  );
+  assert.match(
+    mainSource,
+    /refreshMinMs: toolSM\.WORKBUDDY_HUD_SNAPSHOT_REFRESH_MS/,
+    "Visible WorkBuddy HUD snapshots should pass the short refresh window to the local collector."
+  );
   assert.match(
     mainSource,
     /function hideToolHudForUnsupportedForeground/,
@@ -366,6 +457,16 @@ function testHudWindowLifecycleGuards() {
     toolDetectionSource,
     /function isShellForegroundWindow/,
     "Shell and taskbar foreground reports should be recognized so they can be arbitrated explicitly."
+  );
+  assert.match(
+    toolDetectionSource,
+    /function isHudSuppressingForegroundPopup/,
+    "Tray/taskbar popups and tool-owned popup menus should explicitly suppress in-tool HUDs."
+  );
+  assert.match(
+    shouldInspectBlockersSource,
+    /isHudSuppressingForegroundPopup\(activeWindow\)[\s\S]*?return false/,
+    "HUD-suppressing tray/menu popups must not scan desktop blockers and resurrect a background tool HUD."
   );
   assert.match(
     mainSource,
@@ -419,7 +520,7 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /overlayController\.resolve\(\{[\s\S]*?samplingNoise: !settingsDecision && isForegroundSamplingNoise\(activeWindow\)[\s\S]*?desktopVisible: !settingsDecision && shouldShowDesktopBar\(activeWindow\)[\s\S]*?fullscreenForeground: !settingsDecision && !isDesktopForegroundWindow\(activeWindow, process\.platform\) && isForegroundFullscreen\(activeWindow\)/,
+    /overlayController\.resolve\(\{[\s\S]*?samplingNoise: !settingsDecision && !hudSuppressedByPopup && isForegroundSamplingNoise\(activeWindow\)[\s\S]*?desktopVisible: !settingsDecision && !hudSuppressedByPopup && shouldShowDesktopBar\(activeWindow\)[\s\S]*?fullscreenForeground: !settingsDecision && !hudSuppressedByPopup && !isDesktopForegroundWindow\(activeWindow, process\.platform\) && isForegroundFullscreen\(activeWindow\)/,
     "Foreground samples should be classified once and then handed to the overlay state controller."
   );
   assert.match(
@@ -672,8 +773,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /showToolHudHitbox\(hudBounds \|\| toolHudWindow\.getBounds\(\), \{ promoteVisible \}\)/,
-    "showToolHudWindow must forward promoteVisible to showToolHudHitbox."
+    /updateToolHudHitboxForPayload\(hudBounds \|\| toolHudWindow\.getBounds\(\), \{ promoteVisible \}\)/,
+    "showToolHudWindow must forward promoteVisible through the payload-aware hitbox gate."
   );
   assert.match(
     refreshToolHudSource,
@@ -757,8 +858,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /desktopVisible: !settingsDecision && shouldShowDesktopBar\(activeWindow\)/,
-    "Only desktop foregrounds, including desktop right-click context menus, should be a direct desktop-topbar decision."
+    /desktopVisible: !settingsDecision && !hudSuppressedByPopup && shouldShowDesktopBar\(activeWindow\)/,
+    "Only desktop foregrounds, including desktop right-click context menus, should be a direct desktop-topbar decision unless a tray/menu popup is suppressing HUD surfaces."
   );
   assert.doesNotMatch(
     resolveOverlayDecisionSource,
@@ -827,8 +928,8 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
-    /const toolContext = settingsDecision\?\.preserveMode === SURFACES\.TOOL[\s\S]*?: getForegroundToolContext\(activeWindow\);/,
-    "Strict foreground tool detection should happen before the state controller decides between HUD, top bar, and hidden."
+    /const preservedToolPopupContext = !settingsDecision \? getPreservedToolPopupContext\(activeWindow\) : null;[\s\S]*?const hudSuppressedByPopup = !settingsDecision && !preservedToolPopupContext && isHudSuppressingForegroundPopup\(activeWindow\);[\s\S]*?preservedToolPopupContext \|\| \(hudSuppressedByPopup \? null : getForegroundToolContext\(activeWindow\)\)/,
+    "Strict foreground tool detection should happen before the state controller decides between HUD, top bar, and hidden, while WorkBuddy auxiliary popups can preserve the previous tool context."
   );
   assert.doesNotMatch(
     refreshToolHudSource,
@@ -877,6 +978,31 @@ function testHudWindowLifecycleGuards() {
   );
   assert.match(
     mainSource,
+    /const TOOL_HUD_HITBOX_ENABLED = false;/,
+    "The tool HUD transparent hitbox should stay globally disabled so IME input in tools is not disturbed."
+  );
+  assert.match(
+    mainSource,
+    /function createToolHudHitboxWindow\(\) \{[\s\S]*?!TOOL_HUD_HITBOX_ENABLED[\s\S]*?destroyToolHudHitbox\(\);[\s\S]*?return;/,
+    "The disabled HUD hitbox path must destroy any stale hitbox instead of keeping a hidden transparent window alive."
+  );
+  assert.match(
+    mainSource,
+    /function hideToolHudHitbox\(\) \{[\s\S]*?!TOOL_HUD_HITBOX_ENABLED[\s\S]*?destroyToolHudHitbox\(\);[\s\S]*?return;/,
+    "Hiding the HUD hitbox while globally disabled must remove the transparent window."
+  );
+  assert.match(
+    mainSource,
+    /function setToolHudHitboxMouseRegion\(interactive\) \{[\s\S]*?const nextInteractive = shouldUseToolHudHitbox\(\) && Boolean\(interactive\)/,
+    "The hitbox mouse-region IPC path must still be hard-gated by the global hitbox flag."
+  );
+  assert.match(
+    mainSource,
+    /function shouldUseToolHudHitbox\(payload = latestHudPayload\) \{[\s\S]*?TOOL_HUD_HITBOX_ENABLED && Boolean\(payload\?\.visible\)/,
+    "Tools keep the visual HUD but disable the separate interaction hitbox to avoid input interference."
+  );
+  assert.match(
+    mainSource,
     /function setToolHudHitboxMouseRegion\(interactive\) \{[\s\S]*?reinforceNonActivatingWindow\(toolHudHitboxWindow\)[\s\S]*?setIgnoreMouseEvents\(!nextInteractive/,
     "Enabling the HUD hitbox must not make it an activating foreground target."
   );
@@ -908,7 +1034,17 @@ function testHudWindowLifecycleGuards() {
   assert.match(
     mainSource,
     /function createToolHudHitboxWindow/,
-    "The HUD should use a separate small hitbox window for settings and trust interactions."
+    "The disabled HUD hitbox code path should remain isolated behind the global flag."
+  );
+  assert.doesNotMatch(
+    extractFunction(mainSource, "function createToolHudWindow"),
+    /createToolHudHitboxWindow\(/,
+    "Creating the visual HUD must not eagerly create the transparent hitbox window."
+  );
+  assert.match(
+    mainSource,
+    /function getPreservedToolPopupContext\(activeWindow\) \{[\s\S]*?previousContext\.tool\.id !== "workbuddy"[\s\S]*?className[\s\S]*?=== "#32768"[\s\S]*?isLikelyTrayCornerPopup\(activeWindow\)/,
+    "WorkBuddy auxiliary popups may preserve the HUD, but menu-class and tray-corner popups must still suppress it."
   );
   assert.match(
     mainSource,
@@ -1256,6 +1392,16 @@ function testSettingsPreviewGuards() {
     settingsSource,
     /renderLocalSetupInfo/,
     "The settings page should show local setup info for first-run users."
+  );
+  assert.match(
+    settingsSource,
+    /workbuddy-local[\s\S]*实时积分/,
+    "The settings page should label WorkBuddy as a live credit source, not a planned placeholder."
+  );
+  assert.match(
+    settingsSource,
+    /adapter-ingest[\s\S]*本地接入/,
+    "Adapter-backed tools should render as configurable local ingest sources."
   );
   assert.match(
     read("src/renderer/settings.html"),
@@ -1926,6 +2072,16 @@ function testSettingsPreviewGuards() {
     stylesSource,
     /grid-template-rows:\s*18px minmax\(0, 1fr\) 23px/,
     "The HUD should use bounded rows so the footer cannot overlap the metrics."
+  );
+  assert.match(
+    stylesSource,
+    /body\[data-metric-layout="rows"\] \.hud-stats[\s\S]*?grid-template-columns:\s*minmax\(0, 1fr\) 46px 66px/,
+    "WorkBuddy long exact credits should use a rows metric layout while reserving chart and mascot columns."
+  );
+  assert.match(
+    stylesSource,
+    /body\[data-metric-layout="rows"\] \.hud-chart[\s\S]*?grid-column:\s*2[\s\S]*?body\[data-metric-layout="rows"\] \.hud-mascot[\s\S]*?grid-column:\s*3/,
+    "WorkBuddy rows layout must keep both the chart and the mascot visible."
   );
   assert.match(
     stylesSource,

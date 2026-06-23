@@ -197,6 +197,7 @@ function createIngestServer({ port, accessToken = null, getSnapshot = null, secu
           tokenAccuracy: event.tokenAccuracy,
           rateLimits: event.rateLimits || null,
           context: event.context || null,
+          tokenPlan: event.tokenPlan || null,
           rateLimitsTrust: event.rateLimits
             ? {
                 status: "live",
@@ -204,6 +205,13 @@ function createIngestServer({ port, accessToken = null, getSnapshot = null, secu
                 reason: null,
                 ageMs: Date.now() - new Date(event.timestamp).getTime()
               }
+            : event.tokenPlan
+              ? {
+                  status: event.tokenPlan.platformStatus || "live",
+                  label: event.tokenPlan.label || "Token Plan",
+                  reason: event.tokenPlan.platformReason || null,
+                  ageMs: Date.now() - new Date(event.timestamp).getTime()
+                }
             : {
                 status: "missing",
                 label: "等待",

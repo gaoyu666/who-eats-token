@@ -24,8 +24,11 @@ function normalizeUsageEvent(payload = {}, now = new Date()) {
     confidence,
     source: optionalText(payload.token_source ?? payload.tokenSource, MAX_TEXT_LENGTH) || source
   });
+  const rateLimits = normalizeRateLimits(payload.rate_limits || payload.rateLimits || null);
+  const context = normalizeContext(payload.context || null);
+  const tokenPlan = normalizeTokenPlan(payload.token_plan ?? payload.tokenPlan ?? null);
 
-  if (normalizedInput === 0 && normalizedOutput === 0 && totalTokens === 0 && !payload.rate_limits && !payload.rateLimits) {
+  if (normalizedInput === 0 && normalizedOutput === 0 && totalTokens === 0 && !rateLimits && !context && !tokenPlan) {
     throw new Error("Usage event must include token usage or rate limit data.");
   }
 
@@ -44,8 +47,9 @@ function normalizeUsageEvent(payload = {}, now = new Date()) {
     confidence,
     source,
     tokenAccuracy,
-    rateLimits: normalizeRateLimits(payload.rate_limits || payload.rateLimits || null),
-    context: normalizeContext(payload.context || null),
+    rateLimits,
+    context,
+    tokenPlan,
     metadata: normalizeMetadata(payload.metadata || null)
   };
 }
@@ -114,6 +118,51 @@ function normalizeContext(value) {
     source: optionalText(value.source, MAX_TEXT_LENGTH),
     estimated: Boolean(value.estimated || tokenAccuracy.estimated),
     tokenAccuracy
+  };
+}
+
+function normalizeTokenPlan(value) {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+  const remainingCredits = nonNegativeNumberOrNull(value.remaining_credits ?? value.remainingCredits);
+  const totalCredits = nonNegativeNumberOrNull(value.total_credits ?? value.totalCredits);
+  const usedCredits = nonNegativeNumberOrNull(value.used_credits ?? value.usedCredits);
+  const recentCredits = nonNegativeNumberOrNull(value.recent_credits ?? value.recentCredits);
+  const fiveHourCredits = nonNegativeNumberOrNull(value.five_hour_credits ?? value.fiveHourCredits);
+  const localDeltaCredits = numericOrNull(value.local_delta_credits ?? value.localDeltaCredits);
+  const reportedRemainingPercent = numericOrNull(value.remaining_percent ?? value.remainingPercent);
+  const reportedUsedPercent = numericOrNull(value.used_percent ?? value.usedPercent);
+  const remainingPercent = reportedRemainingPercent ??
+    (totalCredits && remainingCredits !== null ? (remainingCredits / totalCredits) * 100 : null);
+  const usedPercent = reportedUsedPercent ??
+    (totalCredits && usedCredits !== null ? (usedCredits / totalCredits) * 100 :
+      remainingPercent === null ? null : 100 - remainingPercent);
+
+  if (
+    remainingCredits === null &&
+    totalCredits === null &&
+    usedCredits === null &&
+    remainingPercent === null &&
+    usedPercent === null
+  ) {
+    return null;
+  }
+
+  return {
+    remainingCredits,
+    totalCredits,
+    usedCredits,
+    recentCredits,
+    fiveHourCredits,
+    localDeltaCredits,
+    remainingPercent: remainingPercent === null ? null : clampNumber(remainingPercent, 0, 100),
+    usedPercent: usedPercent === null ? null : clampNumber(usedPercent, 0, 100),
+    source: optionalText(value.source, MAX_TEXT_LENGTH),
+    planName: optionalText(value.plan_name ?? value.planName, MAX_TEXT_LENGTH),
+    validUntil: normalizeOptionalTimestamp(value.valid_until ?? value.validUntil),
+    snapshotAt: normalizeOptionalTimestamp(value.snapshot_at ?? value.snapshotAt),
+    platformStatus: optionalText(value.platform_status ?? value.platformStatus, MAX_ID_LENGTH) || "live",
+    platformReason: optionalText(value.platform_reason ?? value.platformReason, MAX_TEXT_LENGTH),
+    label: optionalText(value.label, MAX_TEXT_LENGTH)
   };
 }
 
@@ -194,6 +243,12 @@ function optionalText(value, maxLength) {
 function nonNegativeNumber(value) {
   const number = Number(value);
   if (!Number.isFinite(number)) return 0;
+  return Math.max(0, number);
+}
+
+function nonNegativeNumberOrNull(value) {
+  const number = Number(value);
+  if (!Number.isFinite(number)) return null;
   return Math.max(0, number);
 }
 
