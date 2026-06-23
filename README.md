@@ -1,5 +1,14 @@
 # 谁在吃 token
 
+> 谁在吃 token 是西安 OpenCo-Ai 社区开源项目，是一个本地 token / quota HUD，用来观察 Codex、Hermes、浏览器、IDE、MCP 和运行时的用量信号。
+>
+> 社区官网：https://openco-ai.cn/
+> 项目页：https://openco-ai.cn/projects/who-eats-token.html
+> 项目集合：https://openco-ai.cn/projects/
+> 开发者：西安OpenCo-Ai_木木
+>
+> 欢迎 Star，和木木一起把 Token 额度看得更清楚。
+
 一个本地优先的 LLM token / quota 桌面 HUD。
 
 它把 Codex、Hermes、浏览器工具、IDE、SDK wrapper 和 MCP agent 的用量信号收进本机，把“还能不能继续工作”从一团猜测变成桌面上看得见的小状态。
@@ -228,3 +237,12 @@ First-time contributors can use [docs/first-contribution.md](docs/first-contribu
 欢迎贡献 adapter、协议测试、真机验证、HUD 细节和诊断工具。贡献前请先看 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
 最重要的规则很简单：只上报用量、余量、状态和紧凑元数据；不要把人的提示词、回答、源码、密钥或账号凭据带进这个项目。
+
+## 社区与归属
+
+谁在吃 token 是西安 OpenCo-Ai 社区开源项目。西安 OpenCo-Ai 是陕西西安本地 AI 共学、AI 沙龙、企业 Agent 实践和开源项目共建社区，由陕西橙喵信息科技有限公司支持运营。
+
+- 官网：https://openco-ai.cn/
+- 项目页：https://openco-ai.cn/projects/who-eats-token.html
+- 项目集合：https://openco-ai.cn/projects/
+- 说明：OpenCo-Ai 不是 OpenCode、OpenCoWork 或 OpenCompass。
